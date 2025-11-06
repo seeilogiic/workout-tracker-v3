@@ -79,15 +79,32 @@ npm run build
 
 ### 5. Deploy to GitHub Pages
 
-1. Update `vite.config.ts` with your repository name:
+The app is configured for automatic deployment via GitHub Actions. The base path in `vite.config.ts` is already set to `/workout-tracker-v3/` to match the repository name.
+
+#### Automatic Deployment (Recommended)
+
+1. Push your code to the `main` branch on GitHub
+2. The GitHub Actions workflow will automatically build and deploy your app
+3. Enable GitHub Pages in your repository settings:
+   - Go to Settings → Pages
+   - Under "Source", select "GitHub Actions"
+4. Your app will be available at `https://seeilogiic.github.io/workout-tracker-v3/`
+
+#### Manual Deployment (Alternative)
+
+If you prefer manual deployment:
+
+1. Ensure `vite.config.ts` base path matches your repository name:
    ```typescript
-   base: process.env.NODE_ENV === 'production' ? '/your-repo-name/' : '/',
+   base: process.env.NODE_ENV === 'production' ? '/workout-tracker-v3/' : '/',
    ```
 
 2. Deploy:
    ```bash
    npm run deploy
    ```
+
+3. Configure GitHub Pages in repository settings to use the `gh-pages` branch
 
 ## Project Structure
 
