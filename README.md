@@ -14,7 +14,7 @@ A personal workout tracking web app built with React + TypeScript + Vite and Sup
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite
-- **Styling**: TailwindCSS (dark minimalist theme)
+- **Styling**: TailwindCSS
 - **Backend/Database**: Supabase
 - **Routing**: React Router
 - **Deployment**: GitHub Pages

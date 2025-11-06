@@ -4,10 +4,13 @@ import { Dashboard } from './pages/Dashboard';
 import { LogWorkout } from './pages/LogWorkout';
 import { History } from './pages/History';
 
+// Get base path from Vite config (matches vite.config.ts)
+const basePath = import.meta.env.BASE_URL || '/';
+
 function App() {
   return (
     <WorkoutProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={basePath}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/log" element={<LogWorkout />} />
