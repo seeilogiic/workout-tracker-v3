@@ -15,6 +15,13 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+const formatWorkoutType = (type: string): string => {
+  if (type.startsWith('Other: ')) {
+    return type.substring(7); // Remove "Other: " prefix
+  }
+  return type;
+};
+
 export const WorkoutList: React.FC<WorkoutListProps> = ({ workouts }) => {
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set());
 
@@ -54,7 +61,7 @@ export const WorkoutList: React.FC<WorkoutListProps> = ({ workouts }) => {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-medium text-light-text mb-1">
-                    {workout.type} Workout
+                    {formatWorkoutType(workout.type)} Workout
                   </h3>
                   <p className="text-light-muted text-sm">{formatDate(workout.date)}</p>
                 </div>

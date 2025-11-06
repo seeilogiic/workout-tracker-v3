@@ -12,7 +12,15 @@ interface WorkoutFormProps {
   isSaving?: boolean;
 }
 
-const equipmentOptions: EquipmentType[] = ['machine', 'dumbbell', 'bar', 'cable', 'bodyweight', 'other'];
+const equipmentOptions: EquipmentType[] = ['machine', 'dumbbell', 'bar', 'cable', 'bodyweight', 'smith_machine', 'other'];
+
+// Helper to format equipment name for display
+const formatEquipmentName = (equipment: string): string => {
+  if (equipment === 'smith_machine') {
+    return 'Smith Machine';
+  }
+  return equipment.charAt(0).toUpperCase() + equipment.slice(1);
+};
 
 // Helper to convert string to number or null
 const parseNumberOrNull = (value: string): number | null => {
@@ -286,7 +294,7 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
             <option value="">None</option>
             {equipmentOptions.map((option) => (
               <option key={option} value={option}>
-                {option.charAt(0).toUpperCase() + option.slice(1)}
+                {formatEquipmentName(option)}
               </option>
             ))}
           </select>

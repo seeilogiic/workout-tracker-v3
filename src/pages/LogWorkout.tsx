@@ -5,8 +5,6 @@ import { StartWorkout } from '../components/StartWorkout';
 import { WorkoutForm } from '../components/WorkoutForm';
 import { SupabaseError } from '../components/SupabaseError';
 import { getSupabaseError } from '../lib/supabase';
-import type { WorkoutType } from '../types';
-
 export const LogWorkout: React.FC = () => {
   const navigate = useNavigate();
   const {
@@ -39,6 +37,14 @@ export const LogWorkout: React.FC = () => {
     }
   };
 
+  const displayWorkoutType = (type: string | null): string => {
+    if (!type) return '';
+    if (type.startsWith('Other: ')) {
+      return type.substring(7); // Remove "Other: " prefix
+    }
+    return type;
+  };
+
   return (
     <div className="min-h-screen bg-black p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
@@ -55,12 +61,12 @@ export const LogWorkout: React.FC = () => {
         {error && <SupabaseError message={error} />}
 
         {!currentWorkoutType ? (
-          <StartWorkout onSelectType={(type: WorkoutType) => startWorkout(type)} />
+          <StartWorkout onSelectType={(type: string) => startWorkout(type as any)} />
         ) : (
           <div className="space-y-6">
             <div className="bg-dark-surface border border-dark-border rounded-lg p-4">
               <h2 className="text-xl font-semibold text-light-text mb-2">
-                {currentWorkoutType} Workout
+                {displayWorkoutType(currentWorkoutType)} Workout
               </h2>
               <p className="text-light-muted text-sm">
                 {new Date().toLocaleDateString('en-US', {

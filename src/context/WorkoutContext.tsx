@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { Workout, Exercise, ExerciseData, WorkoutType } from '../types';
+import type { Workout, Exercise, ExerciseData } from '../types';
 import {
   createWorkout,
   addExercise,
@@ -12,7 +12,7 @@ import {
 
 interface WorkoutContextType {
   // Current workout being logged
-  currentWorkoutType: WorkoutType | null;
+  currentWorkoutType: string | null;
   currentWorkoutDate: string;
   currentExercises: Exercise[];
   
@@ -28,7 +28,7 @@ interface WorkoutContextType {
   supabaseError: boolean;
   
   // Actions
-  startWorkout: (type: WorkoutType) => void;
+  startWorkout: (type: string) => void;
   addExerciseToWorkout: (exerciseData: ExerciseData) => Promise<void>;
   editExerciseInWorkout: (exerciseId: string, exerciseData: Partial<ExerciseData>) => Promise<void>;
   removeExerciseFromWorkout: (exerciseId: string) => void;
@@ -41,7 +41,7 @@ interface WorkoutContextType {
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentWorkoutType, setCurrentWorkoutType] = useState<WorkoutType | null>(null);
+  const [currentWorkoutType, setCurrentWorkoutType] = useState<string | null>(null);
   const [currentWorkoutDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [currentExercises, setCurrentExercises] = useState<Exercise[]>([]);
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
@@ -50,7 +50,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isSaving, setIsSaving] = useState(false);
   const [supabaseError] = useState(hasSupabaseError());
 
-  const startWorkout = useCallback((type: WorkoutType) => {
+  const startWorkout = useCallback((type: string) => {
     setCurrentWorkoutType(type);
     setCurrentExercises([]);
   }, []);

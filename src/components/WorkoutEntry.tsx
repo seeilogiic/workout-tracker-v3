@@ -24,6 +24,14 @@ export const WorkoutEntry: React.FC<WorkoutEntryProps> = ({
     return weight % 1 === 0 ? weight.toString() : weight.toFixed(1);
   };
 
+  const formatEquipment = (equipment: string | null): string => {
+    if (!equipment) return '';
+    if (equipment === 'smith_machine') {
+      return 'Smith Machine';
+    }
+    return equipment.charAt(0).toUpperCase() + equipment.slice(1);
+  };
+
   return (
     <div className="bg-dark-surface border border-dark-border rounded-lg p-4">
       <div className="flex justify-between items-start">
@@ -36,7 +44,7 @@ export const WorkoutEntry: React.FC<WorkoutEntryProps> = ({
               {formatNumber(exercise.sets)} sets × {formatNumber(exercise.reps)} reps @ {formatWeight(exercise.weight)} lbs
             </p>
             {exercise.equipment && (
-              <p className="text-light-subtle">Equipment: {exercise.equipment}</p>
+              <p className="text-light-subtle">Equipment: {formatEquipment(exercise.equipment)}</p>
             )}
             {exercise.notes && (
               <p className="text-light-subtle mt-2">{exercise.notes}</p>

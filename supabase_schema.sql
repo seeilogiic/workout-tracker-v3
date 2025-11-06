@@ -2,10 +2,11 @@
 -- Run this SQL in your Supabase SQL Editor
 
 -- Create workouts table
+-- Note: type can be 'Push', 'Pull', 'Legs', 'Upper body', or 'Other: [custom text]'
 CREATE TABLE IF NOT EXISTS workouts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   date DATE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('Push', 'Pull', 'Legs')),
+  type TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -18,7 +19,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   sets INTEGER,
   reps INTEGER,
   weight NUMERIC,
-  equipment TEXT CHECK (equipment IN ('machine', 'dumbbell', 'bar', 'cable', 'bodyweight', 'other')),
+  equipment TEXT CHECK (equipment IN ('machine', 'dumbbell', 'bar', 'cable', 'bodyweight', 'smith_machine', 'other')),
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

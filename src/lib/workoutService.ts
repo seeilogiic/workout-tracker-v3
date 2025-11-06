@@ -1,7 +1,7 @@
 import { getSupabaseClient, getSupabaseError } from './supabase';
 import type { Workout, Exercise, ExerciseData } from '../types';
 
-export async function createWorkout(date: string, type: 'Push' | 'Pull' | 'Legs'): Promise<string | null> {
+export async function createWorkout(date: string, type: string): Promise<string | null> {
   const supabase = getSupabaseClient();
   if (!supabase) {
     return null;

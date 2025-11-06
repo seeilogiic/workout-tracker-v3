@@ -1,6 +1,6 @@
-export type WorkoutType = 'Push' | 'Pull' | 'Legs';
+export type WorkoutType = 'Push' | 'Pull' | 'Legs' | 'Upper body' | 'Other';
 
-export type EquipmentType = 'machine' | 'dumbbell' | 'bar' | 'cable' | 'bodyweight' | 'other';
+export type EquipmentType = 'machine' | 'dumbbell' | 'bar' | 'cable' | 'bodyweight' | 'smith_machine' | 'other';
 
 export interface Exercise {
   id: string;
