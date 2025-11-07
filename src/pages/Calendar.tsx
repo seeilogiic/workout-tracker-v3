@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkout } from '../context/WorkoutContext';
 import type { Workout } from '../types';
 import { WorkoutEntry } from '../components/WorkoutEntry';
 
 export const Calendar: React.FC = () => {
+  const navigate = useNavigate();
   const { allWorkouts } = useWorkout();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -170,6 +172,25 @@ export const Calendar: React.FC = () => {
     return weeks;
   }, [allWorkouts, selectedYear]);
 
+  // Calculate which week each month starts in
+  const monthPositions = useMemo(() => {
+    const positions: Map<number, number> = new Map(); // month index -> week index
+    const startDate = new Date(selectedYear, 0, 1);
+    const firstDayOfYear = startDate.getDay();
+    
+    // Calculate week index for each month's first day
+    // The first week has firstDayOfYear empty cells, then the days start
+    for (let month = 0; month < 12; month++) {
+      const monthStart = new Date(selectedYear, month, 1);
+      const dayOfYear = Math.floor((monthStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      // Week index accounts for the first week having empty cells
+      const weekIndex = Math.floor((dayOfYear + firstDayOfYear) / 7);
+      positions.set(month, weekIndex);
+    }
+    
+    return positions;
+  }, [selectedYear]);
+
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Get workouts for selected date
@@ -303,6 +324,8 @@ export const Calendar: React.FC = () => {
             <div className="flex gap-px">
               {/* Day Labels */}
               <div className="flex flex-col gap-px pr-0.5">
+                {/* Empty space for month labels row */}
+                <div className="h-4 sm:h-5 mb-1"></div>
                 {dayLabels.map((label, idx) => {
                   // Match the exact height of boxes: h-2 = 8px (0.5rem)
                   const boxHeight = '8px';
@@ -325,33 +348,59 @@ export const Calendar: React.FC = () => {
               </div>
 
               {/* Calendar Grid */}
-              <div className="flex gap-px flex-1 min-w-0">
-                {githubCalendarData.map((week, weekIdx) => (
-                  <div key={weekIdx} className="flex flex-col gap-px flex-1 min-w-0">
-                    {week.map((day, dayIdx) => {
-                      if (day === null) {
+              <div className="flex gap-px flex-1 min-w-0 relative">
+                {/* Month Labels Row */}
+                <div className="absolute top-0 left-0 right-0 flex gap-px" style={{ height: '16px' }}>
+                  {githubCalendarData.map((_week, weekIdx) => {
+                    // Check if this week contains the first day of any month
+                    const monthForWeek = Array.from(monthPositions.entries()).find(
+                      ([_month, weekIndex]) => weekIndex === weekIdx
+                    );
+                    
+                    return (
+                      <div
+                        key={`month-label-${weekIdx}`}
+                        className="flex-1 min-w-0 flex items-start justify-start"
+                      >
+                        {monthForWeek && (
+                          <span className="text-[9px] sm:text-[10px] text-light-muted px-0.5">
+                            {monthNames[monthForWeek[0]]}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Calendar Days */}
+                <div className="flex gap-px flex-1 min-w-0 mt-4 sm:mt-5">
+                  {githubCalendarData.map((week, weekIdx) => (
+                    <div key={weekIdx} className="flex flex-col gap-px flex-1 min-w-0">
+                      {week.map((day, dayIdx) => {
+                        if (day === null) {
+                          return (
+                            <div
+                              key={`empty-${weekIdx}-${dayIdx}`}
+                              className="w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm"
+                            />
+                          );
+                        }
+                        
                         return (
                           <div
-                            key={`empty-${weekIdx}-${dayIdx}`}
-                            className="w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm"
+                            key={`${day.date.toISOString()}`}
+                            className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm ${
+                              day.hasWorkout
+                                ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]'
+                                : 'bg-dark-border'
+                            }`}
+                            title={day.date.toLocaleDateString()}
                           />
                         );
-                      }
-                      
-                      return (
-                        <div
-                          key={`${day.date.toISOString()}`}
-                          className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm ${
-                            day.hasWorkout
-                              ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]'
-                              : 'bg-dark-border'
-                          }`}
-                          title={day.date.toLocaleDateString()}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -410,9 +459,23 @@ export const Calendar: React.FC = () => {
                         key={workout.id}
                         className="bg-black border border-dark-border rounded-lg p-4"
                       >
-                        <h3 className="text-lg font-medium text-light-text mb-3">
-                          {formatWorkoutType(workout.type)} Workout
-                        </h3>
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="text-lg font-medium text-light-text">
+                            {formatWorkoutType(workout.type)} Workout
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setIsModalOpen(false);
+                              navigate(`/edit/${workout.id}`);
+                            }}
+                            className="text-light-muted hover:text-light-text transition-colors p-1"
+                            aria-label="Edit workout"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
                         {workout.exercises && workout.exercises.length > 0 ? (
                           <div className="space-y-3">
                             {workout.exercises.map((exercise) => (

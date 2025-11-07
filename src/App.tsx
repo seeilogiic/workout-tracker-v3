@@ -3,6 +3,7 @@ import { WorkoutProvider } from './context/WorkoutContext';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { LogWorkout } from './pages/LogWorkout';
+import { EditWorkout } from './pages/EditWorkout';
 import { History } from './pages/History';
 import { Calendar } from './pages/Calendar';
 
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="log" element={<LogWorkout />} />
+            <Route path="edit/:id" element={<EditWorkout />} />
             <Route path="history" element={<History />} />
             <Route path="calendar" element={<Calendar />} />
           </Route>
