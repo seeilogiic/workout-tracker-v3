@@ -1,9 +1,42 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
+import type { Workout } from '../types';
+import { WorkoutEntry } from '../components/WorkoutEntry';
 
 export const Calendar: React.FC = () => {
   const { allWorkouts } = useWorkout();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Get available years from workouts
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    allWorkouts.forEach(workout => {
+      const workoutYear = new Date(workout.date).getFullYear();
+      years.add(workoutYear);
+    });
+    return Array.from(years).sort((a, b) => b - a); // Sort descending (newest first)
+  }, [allWorkouts]);
+
+  // Determine default year: current year if available, otherwise earliest year, otherwise current year
+  const defaultYear = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    if (availableYears.length === 0) {
+      return currentYear;
+    }
+    if (availableYears.includes(currentYear)) {
+      return currentYear;
+    }
+    return availableYears[0]; // Most recent year with data
+  }, [availableYears]);
+
+  const [selectedYear, setSelectedYear] = useState<number>(defaultYear);
+
+  // Update selected year when default changes (e.g., when data loads)
+  useEffect(() => {
+    setSelectedYear(defaultYear);
+  }, [defaultYear]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -28,6 +61,23 @@ export const Calendar: React.FC = () => {
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
+  // Get workouts for a specific date
+  const getWorkoutsForDate = (date: Date): Workout[] => {
+    const dateStr = date.toISOString().split('T')[0];
+    return allWorkouts.filter(workout => workout.date === dateStr);
+  };
+
+  // Check if a date has workouts
+  const dateHasWorkout = (date: Date): boolean => {
+    return getWorkoutsForDate(date).length > 0;
+  };
+
+  const handleDayClick = (day: number) => {
+    const clickedDate = new Date(year, month, day);
+    setSelectedDate(clickedDate.toISOString().split('T')[0]);
+    setIsModalOpen(true);
+  };
+
   const renderCalendarDays = () => {
     const days = [];
     
@@ -40,28 +90,40 @@ export const Calendar: React.FC = () => {
 
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
+      const dayDate = new Date(year, month, day);
+      const hasWorkout = dateHasWorkout(dayDate);
+      
       days.push(
-        <div
+        <button
           key={day}
+          onClick={() => handleDayClick(day)}
           className="aspect-square flex items-center justify-center text-light-text rounded-lg active:bg-dark-border transition-colors touch-manipulation text-sm sm:text-base"
         >
-          {day}
-        </div>
+          <span className={`flex items-center justify-center w-8 h-8 rounded-full ${
+            hasWorkout ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]' : ''
+          }`}>
+            {day}
+          </span>
+        </button>
       );
     }
 
     return days;
   };
 
-  // GitHub-style calendar: Generate all days from Jan 1 to Dec 31
+  // GitHub-style calendar: Generate all days from Jan 1 to Dec 31 for selected year
   const githubCalendarData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const startDate = new Date(currentYear, 0, 1); // Jan 1
-    const endDate = new Date(currentYear, 11, 31); // Dec 31
+    const startDate = new Date(selectedYear, 0, 1); // Jan 1
+    const endDate = new Date(selectedYear, 11, 31); // Dec 31
     
-    // Create a Set of workout dates for quick lookup
+    // Filter workouts for the selected year and create a Set of workout dates for quick lookup
     const workoutDates = new Set(
-      allWorkouts.map(workout => workout.date)
+      allWorkouts
+        .filter(workout => {
+          const workoutYear = new Date(workout.date).getFullYear();
+          return workoutYear === selectedYear;
+        })
+        .map(workout => workout.date)
     );
 
     // Generate all days of the year
@@ -106,9 +168,32 @@ export const Calendar: React.FC = () => {
     }
 
     return weeks;
-  }, [allWorkouts]);
+  }, [allWorkouts, selectedYear]);
 
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Get workouts for selected date
+  const selectedWorkouts = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateStr = selectedDate;
+    return allWorkouts.filter(workout => workout.date === dateStr);
+  }, [selectedDate, allWorkouts]);
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+
+  const formatWorkoutType = (type: string): string => {
+    if (type.startsWith('Other: ')) {
+      return type.substring(7);
+    }
+    return type;
+  };
 
   return (
     <div className="min-h-screen bg-black p-3 sm:p-4 md:p-8 pb-safe">
@@ -186,38 +271,69 @@ export const Calendar: React.FC = () => {
         </div>
 
         {/* GitHub-style Year Calendar */}
-        <div className="mt-6 bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-light-text mb-4">
-            {new Date().getFullYear()} Workout Activity
-          </h2>
+        <div className="mt-6 bg-dark-surface border border-dark-border rounded-2xl p-2 sm:p-3 md:p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-light-text">
+              Yearly Activity
+            </h2>
+            {availableYears.length > 0 ? (
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-dark-surface border border-dark-border rounded-lg px-3 py-1.5 text-light-text text-sm sm:text-base focus:outline-none focus:border-light-muted transition-colors touch-manipulation"
+              >
+                {availableYears.map(year => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-dark-surface border border-dark-border rounded-lg px-3 py-1.5 text-light-text text-sm sm:text-base focus:outline-none focus:border-light-muted transition-colors touch-manipulation"
+              >
+                <option value={selectedYear}>{selectedYear}</option>
+              </select>
+            )}
+          </div>
           
           <div className="w-full">
-            <div className="flex gap-0.5">
+            <div className="flex gap-px">
               {/* Day Labels */}
-              <div className="flex flex-col gap-0.5 pr-1.5">
-                {dayLabels.map((label, idx) => (
-                  <div
-                    key={label}
-                    className={`text-[10px] text-light-muted flex items-center justify-end ${
-                      idx % 2 === 0 ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    style={{ height: '10px', minHeight: '10px' }}
-                  >
-                    {idx % 2 === 0 ? label : ''}
-                  </div>
-                ))}
+              <div className="flex flex-col gap-px pr-0.5">
+                {dayLabels.map((label, idx) => {
+                  // Match the exact height of boxes: h-2 = 8px (0.5rem)
+                  const boxHeight = '8px';
+                  return (
+                    <div
+                      key={label}
+                      className={`text-[7px] sm:text-[8px] text-light-muted flex items-center justify-start ${
+                        idx % 2 === 0 ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      style={{ 
+                        height: boxHeight, 
+                        minHeight: boxHeight,
+                        maxHeight: boxHeight
+                      }}
+                    >
+                      {idx % 2 === 0 ? label : ''}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Calendar Grid */}
-              <div className="flex gap-0.5 flex-1">
+              <div className="flex gap-px flex-1 min-w-0">
                 {githubCalendarData.map((week, weekIdx) => (
-                  <div key={weekIdx} className="flex flex-col gap-0.5 flex-1">
+                  <div key={weekIdx} className="flex flex-col gap-px flex-1 min-w-0">
                     {week.map((day, dayIdx) => {
                       if (day === null) {
                         return (
                           <div
                             key={`empty-${weekIdx}-${dayIdx}`}
-                            className="w-full aspect-square rounded-sm"
+                            className="w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm"
                           />
                         );
                       }
@@ -225,9 +341,9 @@ export const Calendar: React.FC = () => {
                       return (
                         <div
                           key={`${day.date.toISOString()}`}
-                          className={`w-full aspect-square rounded-sm ${
+                          className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm ${
                             day.hasWorkout
-                              ? 'bg-green-500 shadow-[0_0_2px_rgba(34,197,94,0.6)]'
+                              ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]'
                               : 'bg-dark-border'
                           }`}
                           title={day.date.toLocaleDateString()}
@@ -239,18 +355,86 @@ export const Calendar: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-4 text-xs sm:text-sm text-light-muted">
-            <span>Less</span>
-            <div className="flex gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm bg-dark-border" />
-              <div className="w-2.5 h-2.5 rounded-sm bg-green-500 shadow-[0_0_2px_rgba(34,197,94,0.6)]" />
-            </div>
-            <span>More</span>
-          </div>
         </div>
       </div>
+
+      {/* Workout Modal */}
+      {isModalOpen && selectedDate && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            onClick={() => setIsModalOpen(false)}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-dark-border sticky top-0 bg-dark-surface">
+                <h2 className="text-xl font-semibold text-light-text">
+                  {formatDate(selectedDate)}
+                </h2>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-light-muted active:text-light-text transition-colors touch-manipulation"
+                  aria-label="Close"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-4">
+                {selectedWorkouts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-light-muted">No workouts on this day</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedWorkouts.map((workout) => (
+                      <div
+                        key={workout.id}
+                        className="bg-black border border-dark-border rounded-lg p-4"
+                      >
+                        <h3 className="text-lg font-medium text-light-text mb-3">
+                          {formatWorkoutType(workout.type)} Workout
+                        </h3>
+                        {workout.exercises && workout.exercises.length > 0 ? (
+                          <div className="space-y-3">
+                            {workout.exercises.map((exercise) => (
+                              <WorkoutEntry
+                                key={exercise.id}
+                                exercise={exercise}
+                                showActions={false}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-light-muted text-sm">No exercises recorded</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
