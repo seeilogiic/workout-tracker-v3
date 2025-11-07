@@ -191,17 +191,17 @@ export const Calendar: React.FC = () => {
             {new Date().getFullYear()} Workout Activity
           </h2>
           
-          <div className="overflow-x-auto">
-            <div className="flex gap-1 min-w-max">
+          <div className="w-full">
+            <div className="flex gap-0.5">
               {/* Day Labels */}
-              <div className="flex flex-col gap-1 pr-2">
+              <div className="flex flex-col gap-0.5 pr-1.5">
                 {dayLabels.map((label, idx) => (
                   <div
                     key={label}
-                    className={`text-xs sm:text-sm text-light-muted flex items-center justify-end h-3 sm:h-4 ${
+                    className={`text-[10px] text-light-muted flex items-center justify-end ${
                       idx % 2 === 0 ? 'opacity-100' : 'opacity-0'
                     }`}
-                    style={{ minHeight: '12px' }}
+                    style={{ height: '10px', minHeight: '10px' }}
                   >
                     {idx % 2 === 0 ? label : ''}
                   </div>
@@ -209,15 +209,15 @@ export const Calendar: React.FC = () => {
               </div>
 
               {/* Calendar Grid */}
-              <div className="flex gap-1">
+              <div className="flex gap-0.5 flex-1">
                 {githubCalendarData.map((week, weekIdx) => (
-                  <div key={weekIdx} className="flex flex-col gap-1">
+                  <div key={weekIdx} className="flex flex-col gap-0.5 flex-1">
                     {week.map((day, dayIdx) => {
                       if (day === null) {
                         return (
                           <div
                             key={`empty-${weekIdx}-${dayIdx}`}
-                            className="w-3 h-3 sm:w-4 sm:h-4 rounded"
+                            className="w-full aspect-square rounded-sm"
                           />
                         );
                       }
@@ -225,9 +225,9 @@ export const Calendar: React.FC = () => {
                       return (
                         <div
                           key={`${day.date.toISOString()}`}
-                          className={`w-3 h-3 sm:w-4 sm:h-4 rounded ${
+                          className={`w-full aspect-square rounded-sm ${
                             day.hasWorkout
-                              ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]'
+                              ? 'bg-green-500 shadow-[0_0_2px_rgba(34,197,94,0.6)]'
                               : 'bg-dark-border'
                           }`}
                           title={day.date.toLocaleDateString()}
@@ -244,8 +244,8 @@ export const Calendar: React.FC = () => {
           <div className="flex items-center gap-4 mt-4 text-xs sm:text-sm text-light-muted">
             <span>Less</span>
             <div className="flex gap-1">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-dark-border" />
-              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-dark-border" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-green-500 shadow-[0_0_2px_rgba(34,197,94,0.6)]" />
             </div>
             <span>More</span>
           </div>
