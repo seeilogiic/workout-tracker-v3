@@ -204,6 +204,30 @@ export async function updateExercise(exerciseId: string, exerciseData: Partial<E
   }
 }
 
+export async function updateWorkout(workoutId: string, date: string, type: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return false;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('workouts')
+      .update({ date, type })
+      .eq('id', workoutId);
+
+    if (error) {
+      console.error('Error updating workout:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating workout:', error);
+    return false;
+  }
+}
+
 export async function deleteExercise(exerciseId: string): Promise<boolean> {
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -249,6 +273,45 @@ export async function deleteWorkout(workoutId: string): Promise<boolean> {
   } catch (error) {
     console.error('Error deleting workout:', error);
     return false;
+  }
+}
+
+export async function getWorkoutById(workoutId: string): Promise<Workout | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const { data: workout, error: workoutError } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('id', workoutId)
+      .single();
+
+    if (workoutError) {
+      // Don't log "not found" errors (PGRST116) - this is expected when a workout is deleted
+      if (workoutError.code !== 'PGRST116') {
+        console.error('Error fetching workout:', workoutError);
+      }
+      return null;
+    }
+
+    const { data: exercises, error: exercisesError } = await supabase
+      .from('exercises')
+      .select('*')
+      .eq('workout_id', workout.id)
+      .order('created_at', { ascending: true });
+
+    if (exercisesError) {
+      console.error('Error fetching exercises:', exercisesError);
+      return { ...workout, exercises: [] };
+    }
+
+    return { ...workout, exercises: exercises || [] };
+  } catch (error) {
+    console.error('Error fetching workout by id:', error);
+    return null;
   }
 }
 
