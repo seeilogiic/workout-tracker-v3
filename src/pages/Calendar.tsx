@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useWorkout } from '../context/WorkoutContext';
 import type { Workout } from '../types';
 import { getLocalDateString } from '../lib/dateUtils';
+import { WorkoutModal } from '../components/WorkoutModal';
 
 export const Calendar: React.FC = () => {
-  const navigate = useNavigate();
   const { allWorkouts } = useWorkout();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [modalDate, setModalDate] = useState<Date | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get available years from workouts
   const availableYears = useMemo(() => {
@@ -77,10 +78,22 @@ export const Calendar: React.FC = () => {
     const workoutsForDate = getWorkoutsForDate(clickedDate);
     
     if (workoutsForDate.length > 0) {
-      // Navigate to the first workout if there are multiple
-      navigate(`/workout/${workoutsForDate[0].id}`);
+      setModalDate(clickedDate);
+      setIsModalOpen(true);
     }
-    // If no workouts, do nothing (or could show a toast message)
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setModalDate(null);
+  };
+
+  const handleYearCalendarDayClick = (date: Date) => {
+    const workoutsForDate = getWorkoutsForDate(date);
+    if (workoutsForDate.length > 0) {
+      setModalDate(date);
+      setIsModalOpen(true);
+    }
   };
 
   const renderCalendarDays = () => {
@@ -370,14 +383,16 @@ export const Calendar: React.FC = () => {
                         }
                         
                         return (
-                          <div
+                          <button
                             key={`${day.date.toISOString()}`}
-                            className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm ${
+                            onClick={() => handleYearCalendarDayClick(day.date)}
+                            className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm transition-colors ${
                               day.hasWorkout
-                                ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]'
+                                ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)] hover:bg-emerald-600/80 active:bg-emerald-600'
                                 : 'bg-dark-border'
                             }`}
                             title={day.date.toLocaleDateString()}
+                            disabled={!day.hasWorkout}
                           />
                         );
                       })}
@@ -389,6 +404,15 @@ export const Calendar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Workout Modal */}
+      {isModalOpen && modalDate && (
+        <WorkoutModal
+          workouts={getWorkoutsForDate(modalDate)}
+          date={modalDate}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 };
