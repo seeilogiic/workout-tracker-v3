@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { ExerciseData, EquipmentType, Exercise } from '../types';
 import { useExerciseAutofill } from '../hooks/useExerciseAutofill';
+import { getAllExerciseNames } from '../lib/muscleMapping';
 import { WorkoutEntry } from './WorkoutEntry';
 
 interface WorkoutFormProps {
@@ -66,16 +67,38 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const { getSuggestions, addExerciseName } = useExerciseAutofill();
-
-  const suggestions = formData.exercise_name ? getSuggestions(formData.exercise_name) : [];
+  const { addExerciseName } = useExerciseAutofill();
+  
+  // Get all available exercise names from muscle mapping
+  const availableExercises = useMemo(() => getAllExerciseNames(), []);
+  
+  // Filter exercises based on input
+  const filteredExercises = useMemo(() => {
+    if (!formData.exercise_name.trim()) {
+      return availableExercises;
+    }
+    const lowerInput = formData.exercise_name.toLowerCase();
+    return availableExercises.filter(ex => 
+      ex.toLowerCase().includes(lowerInput)
+    );
+  }, [formData.exercise_name, availableExercises]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.exercise_name.trim()) {
       newErrors.exercise_name = 'Exercise name is required';
+    } else if (!editingExerciseId) {
+      // For new exercises, must be from the predefined list
+      const lowerInput = formData.exercise_name.toLowerCase();
+      const isValidExercise = availableExercises.some(ex => 
+        ex.toLowerCase() === lowerInput
+      );
+      if (!isValidExercise) {
+        newErrors.exercise_name = 'Please select an exercise from the list';
+      }
     }
+    // For editing existing exercises, allow any name (for backward compatibility)
 
     const setsValue = parseNumberOrNull(formData.sets);
     if (setsValue !== null && setsValue < 0) {
@@ -114,11 +137,21 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
     };
 
     if (editingExerciseId) {
-      onEditExercise(editingExerciseId, exerciseData);
+      // When editing, normalize if it matches a predefined exercise, otherwise keep as-is
+      const normalizedName = availableExercises.find(ex => 
+        ex.toLowerCase() === exerciseData.exercise_name.toLowerCase()
+      ) || exerciseData.exercise_name;
+      
+      onEditExercise(editingExerciseId, { ...exerciseData, exercise_name: normalizedName });
       setEditingExerciseId(null);
     } else {
-      onAddExercise(exerciseData);
-      addExerciseName(formData.exercise_name);
+      // Normalize exercise name to match the exact case from available exercises
+      const normalizedName = availableExercises.find(ex => 
+        ex.toLowerCase() === exerciseData.exercise_name.toLowerCase()
+      ) || exerciseData.exercise_name;
+      
+      onAddExercise({ ...exerciseData, exercise_name: normalizedName });
+      addExerciseName(normalizedName);
     }
 
     // Reset form
@@ -161,8 +194,8 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
     setShowSuggestions(false);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setFormData({ ...formData, exercise_name: suggestion });
+  const handleExerciseSelect = (exerciseName: string) => {
+    setFormData({ ...formData, exercise_name: exerciseName });
     setShowSuggestions(false);
   };
 
@@ -185,18 +218,18 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 text-light-text focus:outline-none focus:border-light-muted"
-              placeholder="e.g., Bench Press"
+              placeholder="Type to search exercises..."
             />
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-dark-surface border border-dark-border rounded-lg shadow-lg">
-                {suggestions.map((suggestion) => (
+            {showSuggestions && filteredExercises.length > 0 && filteredExercises.length <= 10 && (
+              <div className="absolute z-10 w-full mt-1 bg-dark-surface border border-dark-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {filteredExercises.map((exercise) => (
                   <button
-                    key={suggestion}
+                    key={exercise}
                     type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
+                    onClick={() => handleExerciseSelect(exercise)}
                     className="w-full text-left px-4 py-2 hover:bg-dark-border text-light-text"
                   >
-                    {suggestion}
+                    {exercise}
                   </button>
                 ))}
               </div>
