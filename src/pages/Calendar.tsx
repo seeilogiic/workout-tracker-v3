@@ -2,15 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkout } from '../context/WorkoutContext';
 import type { Workout } from '../types';
-import { WorkoutEntry } from '../components/WorkoutEntry';
-import { getLocalDateString, parseLocalDate } from '../lib/dateUtils';
+import { getLocalDateString } from '../lib/dateUtils';
 
 export const Calendar: React.FC = () => {
   const navigate = useNavigate();
   const { allWorkouts } = useWorkout();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get available years from workouts
   const availableYears = useMemo(() => {
@@ -77,8 +74,13 @@ export const Calendar: React.FC = () => {
 
   const handleDayClick = (day: number) => {
     const clickedDate = new Date(year, month, day);
-    setSelectedDate(getLocalDateString(clickedDate));
-    setIsModalOpen(true);
+    const workoutsForDate = getWorkoutsForDate(clickedDate);
+    
+    if (workoutsForDate.length > 0) {
+      // Navigate to the first workout if there are multiple
+      navigate(`/workout/${workoutsForDate[0].id}`);
+    }
+    // If no workouts, do nothing (or could show a toast message)
   };
 
   const renderCalendarDays = () => {
@@ -194,29 +196,6 @@ export const Calendar: React.FC = () => {
 
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Get workouts for selected date
-  const selectedWorkouts = useMemo(() => {
-    if (!selectedDate) return [];
-    const dateStr = selectedDate;
-    return allWorkouts.filter(workout => workout.date === dateStr);
-  }, [selectedDate, allWorkouts]);
-
-  const formatDate = (dateString: string): string => {
-    const date = parseLocalDate(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
-
-  const formatWorkoutType = (type: string): string => {
-    if (type.startsWith('Other: ')) {
-      return type.substring(7);
-    }
-    return type;
-  };
-
   return (
     <div className="min-h-screen bg-black p-3 sm:p-4 md:p-8 pb-safe">
       <div className="max-w-2xl mx-auto">
@@ -226,6 +205,9 @@ export const Calendar: React.FC = () => {
         </div>
 
         <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
+          <p className="text-light-muted text-sm mb-4">
+            Tap a day with a workout to view details
+          </p>
           {/* Month Header with Navigation */}
           <div className="flex items-center justify-between mb-4 sm:mb-5">
             <button
@@ -407,98 +389,6 @@ export const Calendar: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Workout Modal */}
-      {isModalOpen && selectedDate && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
-            onClick={() => setIsModalOpen(false)}
-          />
-
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-dark-surface border border-dark-border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-dark-border sticky top-0 bg-dark-surface">
-                <h2 className="text-xl font-semibold text-light-text">
-                  {formatDate(selectedDate)}
-                </h2>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-light-muted active:text-light-text transition-colors touch-manipulation"
-                  aria-label="Close"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="p-4">
-                {selectedWorkouts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-light-muted">No workouts on this day</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {selectedWorkouts.map((workout) => (
-                      <div
-                        key={workout.id}
-                        className="bg-black border border-dark-border rounded-lg p-4"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <h3 className="text-lg font-medium text-light-text">
-                            {formatWorkoutType(workout.type)} Workout
-                          </h3>
-                          <button
-                            onClick={() => {
-                              setIsModalOpen(false);
-                              navigate(`/edit/${workout.id}`);
-                            }}
-                            className="text-light-muted hover:text-light-text transition-colors p-1"
-                            aria-label="Edit workout"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                        </div>
-                        {workout.exercises && workout.exercises.length > 0 ? (
-                          <div className="space-y-3">
-                            {workout.exercises.map((exercise) => (
-                              <WorkoutEntry
-                                key={exercise.id}
-                                exercise={exercise}
-                                showActions={false}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-light-muted text-sm">No exercises recorded</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 };
