@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Workout } from '../types';
 import { WorkoutEntry } from './WorkoutEntry';
+import { parseLocalDate } from '../lib/dateUtils';
 
 interface WorkoutListProps {
   workouts: Workout[];
 }
 
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   return date.toLocaleDateString('en-US', { 
     month: 'short', 
     day: 'numeric', 

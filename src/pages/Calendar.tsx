@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWorkout } from '../context/WorkoutContext';
 import type { Workout } from '../types';
 import { WorkoutEntry } from '../components/WorkoutEntry';
+import { getLocalDateString, parseLocalDate } from '../lib/dateUtils';
 
 export const Calendar: React.FC = () => {
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ export const Calendar: React.FC = () => {
 
   // Get workouts for a specific date
   const getWorkoutsForDate = (date: Date): Workout[] => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(date);
     return allWorkouts.filter(workout => workout.date === dateStr);
   };
 
@@ -76,7 +77,7 @@ export const Calendar: React.FC = () => {
 
   const handleDayClick = (day: number) => {
     const clickedDate = new Date(year, month, day);
-    setSelectedDate(clickedDate.toISOString().split('T')[0]);
+    setSelectedDate(getLocalDateString(clickedDate));
     setIsModalOpen(true);
   };
 
@@ -133,7 +134,7 @@ export const Calendar: React.FC = () => {
     const currentDate = new Date(startDate);
     
     while (currentDate <= endDate) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(currentDate);
       days.push({
         date: new Date(currentDate),
         hasWorkout: workoutDates.has(dateStr),
@@ -201,7 +202,7 @@ export const Calendar: React.FC = () => {
   }, [selectedDate, allWorkouts]);
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
+    const date = parseLocalDate(dateString);
     return date.toLocaleDateString('en-US', { 
       month: 'long', 
       day: 'numeric', 
