@@ -13,6 +13,7 @@ import {
   deleteExercise,
   hasSupabaseError,
 } from '../lib/workoutService';
+import { getLocalDateString } from '../lib/dateUtils';
 
 interface WorkoutContextType {
   // Current workout being logged
@@ -50,7 +51,7 @@ const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentWorkoutType, setCurrentWorkoutType] = useState<string | null>(null);
-  const [currentWorkoutDate, setCurrentWorkoutDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [currentWorkoutDate, setCurrentWorkoutDate] = useState<string>(getLocalDateString());
   const [currentExercises, setCurrentExercises] = useState<Exercise[]>([]);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
@@ -63,7 +64,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     setCurrentWorkoutType(type);
     setCurrentExercises([]);
     setEditingWorkoutId(null);
-    setCurrentWorkoutDate(new Date().toISOString().split('T')[0]);
+    setCurrentWorkoutDate(getLocalDateString());
   }, []);
 
   const loadWorkoutForEdit = useCallback(async (workoutId: string): Promise<boolean> => {
@@ -160,14 +161,14 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     setCurrentWorkoutType(null);
     setCurrentExercises([]);
     setEditingWorkoutId(null);
-    setCurrentWorkoutDate(new Date().toISOString().split('T')[0]);
+    setCurrentWorkoutDate(getLocalDateString());
   }, []);
 
   const refreshWorkouts = useCallback(async () => {
     setIsLoading(true);
     try {
       const [recent, all] = await Promise.all([
-        getRecentWorkouts(7),
+        getRecentWorkouts(3),
         getAllWorkouts(),
       ]);
       setRecentWorkouts(recent);
