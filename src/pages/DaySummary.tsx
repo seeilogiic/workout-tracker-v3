@@ -5,15 +5,6 @@ import { parseLocalDate, getLocalDateString } from '../lib/dateUtils';
 import { MuscleMap } from '../components/MuscleMap';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
-const formatDate = (dateString: string): string => {
-  const date = parseLocalDate(dateString);
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric' 
-  });
-};
-
 const formatWorkoutType = (type: string): string => {
   if (type.startsWith('Other: ')) {
     return type.substring(7);
