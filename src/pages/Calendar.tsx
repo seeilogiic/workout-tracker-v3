@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkout } from '../context/WorkoutContext';
 import type { Workout } from '../types';
 import { 
@@ -25,13 +26,75 @@ interface WorkoutTimeRange {
 
 export const Calendar: React.FC = () => {
   const { allWorkouts } = useWorkout();
-  const [viewType, setViewType] = useState<ViewType>('year');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null); // For week view
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize state from URL parameters if present (using lazy initializer)
+  const [viewType, setViewType] = useState<ViewType>(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam && (viewParam === 'year' || viewParam === 'month' || viewParam === 'week')) {
+      return viewParam as ViewType;
+    }
+    return 'year';
+  });
+  
+  const [currentDate, setCurrentDate] = useState(() => {
+    const viewParam = searchParams.get('view');
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      const parsedDate = parseLocalDate(dateParam);
+      if (viewParam === 'month') {
+        return parsedDate;
+      } else if (viewParam === 'year') {
+        return new Date(parsedDate.getFullYear(), 0, 1);
+      }
+    }
+    return new Date();
+  });
+  
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
+    const viewParam = searchParams.get('view');
+    const dateParam = searchParams.get('date');
+    if (viewParam === 'week' && dateParam) {
+      return parseLocalDate(dateParam);
+    }
+    return null;
+  });
+  
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
+    const viewParam = searchParams.get('view');
+    const dateParam = searchParams.get('date');
+    if (viewParam === 'year' && dateParam) {
+      return parseLocalDate(dateParam).getFullYear();
+    }
+    return new Date().getFullYear();
+  });
+  
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMuscleFrequencyModalOpen, setIsMuscleFrequencyModalOpen] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const initializedFromURL = useRef(false);
+
+  // Mark that we initialized from URL if params exist
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    const dateParam = searchParams.get('date');
+    if (viewParam || dateParam) {
+      initializedFromURL.current = true;
+    }
+  }, []);
+
+  // Clear URL params after reading them (only once on mount)
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    const dateParam = searchParams.get('date');
+    
+    if (viewParam || dateParam) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Get available years from workouts
   const availableYears = useMemo(() => {
@@ -55,13 +118,15 @@ export const Calendar: React.FC = () => {
     return availableYears[0]; // Most recent year with data
   }, [availableYears]);
 
-  const [selectedYear, setSelectedYear] = useState<number>(defaultYear);
-
-  // Update selected year when default changes (e.g., when data loads)
+  // Update selected year when default changes (e.g., when data loads), but only if not initialized from URL
   useEffect(() => {
-    setSelectedYear(defaultYear);
-    setCurrentDate(new Date(defaultYear, 0, 1));
-  }, [defaultYear]);
+    if (!initializedFromURL.current) {
+      setSelectedYear(defaultYear);
+      if (viewType === 'year') {
+        setCurrentDate(new Date(defaultYear, 0, 1));
+      }
+    }
+  }, [defaultYear, viewType]);
 
   // Helper functions - defined before useMemo hooks that use them
   // Calculate workout time ranges for timeline display
@@ -594,6 +659,13 @@ export const Calendar: React.FC = () => {
               const topPixels = (startMinutes / 60) * 60; // 60px per hour
               const heightPixels = (duration / 60) * 60;
 
+              const handleWorkoutClick = () => {
+                if (selectedDate) {
+                  const dateString = getLocalDateString(selectedDate);
+                  navigate(`/calendar/day/${dateString}?view=week&calendarDate=${dateString}`);
+                }
+              };
+
               return (
                 <div
                   key={workoutIdx}
@@ -603,10 +675,7 @@ export const Calendar: React.FC = () => {
                     height: `${Math.max(heightPixels, 40)}px`,
                     minHeight: '40px',
                   }}
-                  onClick={() => {
-                    setModalDate(selectedDate);
-                    setIsModalOpen(true);
-                  }}
+                  onClick={handleWorkoutClick}
                   title={`${timeRange.workout.type} - ${timeRange.startHour}:${String(timeRange.startMinute).padStart(2, '0')} - ${timeRange.endHour}:${String(timeRange.endMinute).padStart(2, '0')}`}
                 >
                   <div className="text-xs text-white font-medium truncate">

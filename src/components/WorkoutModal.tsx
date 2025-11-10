@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Workout } from '../types';
-import { parseLocalDate } from '../lib/dateUtils';
+import { parseLocalDate, getLocalDateString } from '../lib/dateUtils';
 
 interface WorkoutModalProps {
   workouts: Workout[];
@@ -29,7 +29,9 @@ export const WorkoutModal: React.FC<WorkoutModalProps> = ({ workouts, date, onCl
   const navigate = useNavigate();
 
   const handleWorkoutClick = (workoutId: string) => {
-    navigate(`/workout/${workoutId}`);
+    // Navigate to day summary instead of individual workout
+    const dateString = getLocalDateString(date);
+    navigate(`/calendar/day/${dateString}?view=month&calendarDate=${dateString}`);
     onClose();
   };
 

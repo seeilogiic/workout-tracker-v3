@@ -7,6 +7,7 @@ import { EditWorkout } from './pages/EditWorkout';
 import { ViewWorkout } from './pages/ViewWorkout';
 import { History } from './pages/History';
 import { Calendar } from './pages/Calendar';
+import { DaySummary } from './pages/DaySummary';
 
 // Get base path from Vite config (matches vite.config.ts)
 const basePath = import.meta.env.BASE_URL || '/';
@@ -23,6 +24,7 @@ function App() {
             <Route path="edit/:id" element={<EditWorkout />} />
             <Route path="history" element={<History />} />
             <Route path="calendar" element={<Calendar />} />
+            <Route path="calendar/day/:date" element={<DaySummary />} />
           </Route>
         </Routes>
       </BrowserRouter>
