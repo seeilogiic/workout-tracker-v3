@@ -9,7 +9,7 @@ import {
   parseLocalDate
 } from '../lib/dateUtils';
 import { WorkoutModal } from '../components/WorkoutModal';
-import { MuscleFrequencyModal } from '../components/MuscleFrequencyModal';
+import { MuscleFrequencyMap } from '../components/MuscleFrequencyMap';
 import { getMuscleHitCounts } from '../lib/muscleMapping';
 
 type ViewType = 'year' | 'month' | 'week';
@@ -35,7 +35,7 @@ export const Calendar: React.FC = () => {
     if (viewParam && (viewParam === 'year' || viewParam === 'month' || viewParam === 'week')) {
       return viewParam as ViewType;
     }
-    return 'year';
+    return 'month';
   });
   
   const [currentDate, setCurrentDate] = useState(() => {
@@ -72,7 +72,9 @@ export const Calendar: React.FC = () => {
   
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isMuscleFrequencyModalOpen, setIsMuscleFrequencyModalOpen] = useState(false);
+  const [showMuscleFrequencyInMonthView, setShowMuscleFrequencyInMonthView] = useState(false);
+  const [showMuscleFrequencyInYearView, setShowMuscleFrequencyInYearView] = useState(false);
+  const [showMuscleFrequencyInWeekView, setShowMuscleFrequencyInWeekView] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
   const initializedFromURL = useRef(false);
 
@@ -124,6 +126,11 @@ export const Calendar: React.FC = () => {
       setSelectedYear(defaultYear);
       if (viewType === 'year') {
         setCurrentDate(new Date(defaultYear, 0, 1));
+      } else if (viewType === 'month') {
+        const currentYear = new Date().getFullYear();
+        // If defaultYear is the current year, show current month; otherwise show January
+        const monthToShow = defaultYear === currentYear ? new Date().getMonth() : 0;
+        setCurrentDate(new Date(defaultYear, monthToShow, 1));
       }
     }
   }, [defaultYear, viewType]);
@@ -286,28 +293,18 @@ export const Calendar: React.FC = () => {
     const clickedDate = new Date(year, month, day);
     setSelectedDate(clickedDate);
     setViewType('week');
+    setShowMuscleFrequencyInWeekView(false); // Reset to calendar view when entering week view
   };
 
   const handleMonthClick = (monthIndex: number) => {
     setCurrentDate(new Date(selectedYear, monthIndex, 1));
     setViewType('month');
+    setShowMuscleFrequencyInMonthView(false); // Reset to calendar view when entering month view
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setModalDate(null);
-  };
-
-  // Get period label for muscle frequency modal
-  const getPeriodLabel = (): string => {
-    if (viewType === 'week' && selectedDate) {
-      const weekRange = getWeekRange(selectedDate);
-      return formatWeekRange(weekRange.start, weekRange.end);
-    } else if (viewType === 'month') {
-      return `${fullMonthNames[month]} ${year}`;
-    } else {
-      return `${selectedYear}`;
-    }
   };
 
   // Handle year change
@@ -332,6 +329,27 @@ export const Calendar: React.FC = () => {
 
     return (
       <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
+        {/* Back Button */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={() => navigate('/')}
+            className="text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm sm:text-base">Dashboard</span>
+          </button>
+
+          {/* Toggle Button */}
+          <button
+            onClick={() => setShowMuscleFrequencyInYearView(!showMuscleFrequencyInYearView)}
+            className="text-sm sm:text-base px-3 py-1.5 rounded-lg bg-dark-border hover:bg-dark-border/80 text-light-text transition-colors touch-manipulation"
+          >
+            {showMuscleFrequencyInYearView ? 'Yearly View' : 'Muscles Worked'}
+          </button>
+        </div>
+
         {/* Year Navigation */}
         <div className="mb-4 flex items-center justify-center gap-4">
           <button
@@ -359,66 +377,73 @@ export const Calendar: React.FC = () => {
           </button>
         </div>
 
-        {/* Month Grid */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          {months.map((monthIndex) => {
-            const monthStart = new Date(selectedYear, monthIndex, 1);
-            const monthEnd = new Date(selectedYear, monthIndex + 1, 0);
-            const daysInMonth = monthEnd.getDate();
-            const firstDayOfWeek = monthStart.getDay();
-            
-            // Get dates for this month
-            const monthDates: (number | null)[] = [];
-            for (let i = 0; i < firstDayOfWeek; i++) {
-              monthDates.push(null);
-            }
-            for (let day = 1; day <= daysInMonth; day++) {
-              monthDates.push(day);
-            }
+        {showMuscleFrequencyInYearView ? (
+          /* Muscle Frequency Visualization */
+          <div className="py-4">
+            <MuscleFrequencyMap muscleFrequencies={muscleFrequencies} />
+          </div>
+        ) : (
+          /* Month Grid */
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            {months.map((monthIndex) => {
+              const monthStart = new Date(selectedYear, monthIndex, 1);
+              const monthEnd = new Date(selectedYear, monthIndex + 1, 0);
+              const daysInMonth = monthEnd.getDate();
+              const firstDayOfWeek = monthStart.getDay();
+              
+              // Get dates for this month
+              const monthDates: (number | null)[] = [];
+              for (let i = 0; i < firstDayOfWeek; i++) {
+                monthDates.push(null);
+              }
+              for (let day = 1; day <= daysInMonth; day++) {
+                monthDates.push(day);
+              }
 
-            return (
-              <button
-                key={monthIndex}
-                onClick={() => handleMonthClick(monthIndex)}
-                className="text-left p-2 sm:p-3 rounded-lg hover:bg-dark-border transition-colors"
-              >
-                <div className="text-sm sm:text-base font-semibold text-light-text mb-2">
-                  {fullMonthNames[monthIndex]}
-                </div>
-                <div className="grid grid-cols-7 gap-0.5">
-                  {dayNames.map(day => (
-                    <div key={day} className="text-light-muted text-center py-0.5 text-[8px] sm:text-[9px]">
-                      {day[0]}
-                    </div>
-                  ))}
-                  {monthDates.map((day, idx) => {
-                    if (day === null) {
-                      return <div key={`empty-${idx}`} className="aspect-square" />;
-                    }
-                    const dayDate = new Date(selectedYear, monthIndex, day);
-                    const hasWorkout = dateHasWorkout(dayDate);
-                    const dayIsToday = isToday(dayDate);
-                    
-                    return (
-                      <div
-                        key={day}
-                        className={`aspect-square rounded ${
-                          hasWorkout
-                            ? dayIsToday
-                              ? 'bg-emerald-600/60 ring-1 ring-white' // Green with white border
-                              : 'bg-emerald-600/60' // Just green
-                            : dayIsToday
-                              ? 'ring-1 ring-white' // White ring only if no workout
-                              : 'bg-dark-border'
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+              return (
+                <button
+                  key={monthIndex}
+                  onClick={() => handleMonthClick(monthIndex)}
+                  className="text-left p-2 sm:p-3 rounded-lg hover:bg-dark-border transition-colors"
+                >
+                  <div className="text-sm sm:text-base font-semibold text-light-text mb-2">
+                    {fullMonthNames[monthIndex]}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {dayNames.map(day => (
+                      <div key={day} className="text-light-muted text-center py-0.5 text-[8px] sm:text-[9px]">
+                        {day[0]}
+                      </div>
+                    ))}
+                    {monthDates.map((day, idx) => {
+                      if (day === null) {
+                        return <div key={`empty-${idx}`} className="aspect-square" />;
+                      }
+                      const dayDate = new Date(selectedYear, monthIndex, day);
+                      const hasWorkout = dateHasWorkout(dayDate);
+                      const dayIsToday = isToday(dayDate);
+                      
+                      return (
+                        <div
+                          key={day}
+                          className={`aspect-square rounded ${
+                            hasWorkout
+                              ? dayIsToday
+                                ? 'bg-emerald-600/60 ring-1 ring-white' // Green with white border
+                                : 'bg-emerald-600/60' // Just green
+                              : dayIsToday
+                                ? 'ring-1 ring-white' // White ring only if no workout
+                                : 'bg-dark-border'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -473,58 +498,110 @@ export const Calendar: React.FC = () => {
     return (
       <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
         {/* Back Button */}
-        <button
-          onClick={() => setViewType('year')}
-          className="mb-4 text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span className="text-sm sm:text-base">{year}</span>
-        </button>
-
-        {/* Month Header with Navigation */}
-        <div className="flex items-center justify-between mb-4 sm:mb-5">
+        <div className="mb-4 flex items-center justify-between">
           <button
-            onClick={goToPreviousMonth}
-            className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
-            aria-label="Previous month"
+            onClick={() => {
+              setViewType('year');
+              setShowMuscleFrequencyInYearView(false); // Reset to calendar view when navigating back
+            }}
+            className="text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
+            <span className="text-sm sm:text-base">{year}</span>
           </button>
 
-          <h2 className="text-lg sm:text-xl font-semibold text-light-text px-2">
-            {fullMonthNames[month]} {year}
-          </h2>
-
+          {/* Toggle Button */}
           <button
-            onClick={goToNextMonth}
-            className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
-            aria-label="Next month"
+            onClick={() => setShowMuscleFrequencyInMonthView(!showMuscleFrequencyInMonthView)}
+            className="text-sm sm:text-base px-3 py-1.5 rounded-lg bg-dark-border hover:bg-dark-border/80 text-light-text transition-colors touch-manipulation"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            {showMuscleFrequencyInMonthView ? 'Monthly View' : 'Muscles Worked'}
           </button>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-          {/* Day Headers */}
-          {dayNames.map((day) => (
-            <div
-              key={day}
-              className="aspect-square flex items-center justify-center text-light-muted text-xs sm:text-sm font-medium"
-            >
-              {day}
-            </div>
-          ))}
+        {showMuscleFrequencyInMonthView ? (
+          /* Muscle Frequency Visualization */
+          <div>
+            {/* Month Header with Navigation */}
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <button
+                onClick={goToPreviousMonth}
+                className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                aria-label="Previous month"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
 
-          {/* Calendar Days */}
-          {renderCalendarDays()}
-        </div>
+              <h2 className="text-lg sm:text-xl font-semibold text-light-text px-2">
+                {fullMonthNames[month]} {year}
+              </h2>
+
+              <button
+                onClick={goToNextMonth}
+                className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                aria-label="Next month"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Muscle Frequency Map */}
+            <div className="py-4">
+              <MuscleFrequencyMap muscleFrequencies={muscleFrequencies} />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Month Header with Navigation */}
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <button
+                onClick={goToPreviousMonth}
+                className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                aria-label="Previous month"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <h2 className="text-lg sm:text-xl font-semibold text-light-text px-2">
+                {fullMonthNames[month]} {year}
+              </h2>
+
+              <button
+                onClick={goToNextMonth}
+                className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                aria-label="Next month"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+              {/* Day Headers */}
+              {dayNames.map((day) => (
+                <div
+                  key={day}
+                  className="aspect-square flex items-center justify-center text-light-muted text-xs sm:text-sm font-medium"
+                >
+                  {day}
+                </div>
+              ))}
+
+              {/* Calendar Days */}
+              {renderCalendarDays()}
+            </div>
+          </>
+        )}
       </div>
     );
   };
@@ -548,149 +625,199 @@ export const Calendar: React.FC = () => {
 
     return (
       <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
-        {/* Back Button */}
-        <button
-          onClick={() => {
-            setViewType('month');
-            setCurrentDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
-            setSelectedDate(null);
-          }}
-          className="mb-4 text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span className="text-sm sm:text-base">{fullMonthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</span>
-        </button>
+        {/* Back Button with Toggle */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={() => {
+              setViewType('month');
+              setCurrentDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+              setSelectedDate(null);
+              setShowMuscleFrequencyInMonthView(false); // Reset to calendar view when navigating back
+            }}
+            className="text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm sm:text-base">{fullMonthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</span>
+          </button>
 
-        {/* Week Selector Bar */}
-        <div className="mb-4">
-          {/* Week Navigation */}
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={goToPreviousWeek}
-              className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
-              aria-label="Previous week"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
+          {/* Toggle Button */}
+          <button
+            onClick={() => setShowMuscleFrequencyInWeekView(!showMuscleFrequencyInWeekView)}
+            className="text-sm sm:text-base px-3 py-1.5 rounded-lg bg-dark-border hover:bg-dark-border/80 text-light-text transition-colors touch-manipulation"
+          >
+            {showMuscleFrequencyInWeekView ? 'Weekly View' : 'Muscles Worked'}
+          </button>
+        </div>
 
-            <div className="text-sm sm:text-base text-light-text font-medium">
-              {formatWeekRange(weekRange.start, weekRange.end)}
+        {showMuscleFrequencyInWeekView ? (
+          /* Muscle Frequency Visualization */
+          <div>
+            {/* Week Navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={goToPreviousWeek}
+                className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                aria-label="Previous week"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <div className="text-sm sm:text-base text-light-text font-medium">
+                {formatWeekRange(weekRange.start, weekRange.end)}
+              </div>
+
+              <button
+                onClick={goToNextWeek}
+                className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                aria-label="Next week"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
 
-            <button
-              onClick={goToNextWeek}
-              className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
-              aria-label="Next week"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+            {/* Muscle Frequency Map */}
+            <div className="py-4">
+              <MuscleFrequencyMap muscleFrequencies={muscleFrequencies} />
+            </div>
           </div>
-
-          {/* Week Days Bar */}
-          <div className="grid grid-cols-7 gap-2">
-            {weekDays.map((day, idx) => {
-              const dayHasWorkout = dateHasWorkout(day);
-              const dayIsTodayInWeek = isToday(day);
-              const isSelected = getLocalDateString(day) === getLocalDateString(selectedDate);
-              
-              return (
+        ) : (
+          <>
+            {/* Week Selector Bar */}
+            <div className="mb-4">
+              {/* Week Navigation */}
+              <div className="flex items-center justify-between mb-3">
                 <button
-                  key={idx}
-                  onClick={() => setSelectedDate(day)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                    isSelected ? 'bg-dark-border' : 'hover:bg-dark-border/50'
-                  }`}
+                  onClick={goToPreviousWeek}
+                  className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                  aria-label="Previous week"
                 >
-                  <div className="text-xs text-light-muted">{dayNames[idx]}</div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    dayHasWorkout
-                      ? dayIsTodayInWeek
-                        ? 'bg-emerald-600/60 ring-2 ring-white' // Green with white border
-                        : 'bg-emerald-600/60' // Just green
-                      : dayIsTodayInWeek
-                        ? 'ring-2 ring-white text-white' // White ring only if no workout
-                        : ''
-                  } ${
-                    isSelected && !dayHasWorkout
-                      ? 'text-light-text'
-                      : dayHasWorkout
-                        ? 'text-white'
-                        : 'text-light-muted'
-                  }`}>
-                    {day.getDate()}
-                  </div>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Timeline */}
-        <div 
-          ref={timelineRef}
-          className="border border-dark-border rounded-lg overflow-y-auto relative"
-          style={{ height: '400px' }} // Shows ~5-6 hours at a time
-        >
-          {/* Hour Labels and Grid with Workout Blocks */}
-          <div className="relative" style={{ minHeight: '1440px' }}> {/* 24 hours * 60px */}
-            {hours.map((hour) => (
-              <div
-                key={hour}
-                className="relative border-t border-dark-border/30"
-                style={{ height: '60px' }}
-              >
-                <div className="absolute left-2 top-1 text-[10px] text-light-muted">
-                  {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                <div className="text-sm sm:text-base text-light-text font-medium">
+                  {formatWeekRange(weekRange.start, weekRange.end)}
                 </div>
-              </div>
-            ))}
 
-            {/* Workout Blocks */}
-            {workoutTimeRangesForSelectedDate.map((timeRange, workoutIdx) => {
-              const startMinutes = timeRange.startHour * 60 + timeRange.startMinute;
-              const endMinutes = timeRange.endHour * 60 + timeRange.endMinute;
-              const duration = endMinutes - startMinutes;
-              const topPixels = (startMinutes / 60) * 60; // 60px per hour
-              const heightPixels = (duration / 60) * 60;
-
-              const handleWorkoutClick = () => {
-                if (selectedDate) {
-                  const dateString = getLocalDateString(selectedDate);
-                  navigate(`/calendar/day/${dateString}?view=week&calendarDate=${dateString}`);
-                }
-              };
-
-              return (
-                <div
-                  key={workoutIdx}
-                  className="absolute left-12 right-2 bg-emerald-600/60 border border-emerald-500/50 rounded px-2 py-1 cursor-pointer hover:bg-emerald-600/80 transition-colors z-10"
-                  style={{
-                    top: `${topPixels}px`,
-                    height: `${Math.max(heightPixels, 40)}px`,
-                    minHeight: '40px',
-                  }}
-                  onClick={handleWorkoutClick}
-                  title={`${timeRange.workout.type} - ${timeRange.startHour}:${String(timeRange.startMinute).padStart(2, '0')} - ${timeRange.endHour}:${String(timeRange.endMinute).padStart(2, '0')}`}
+                <button
+                  onClick={goToNextWeek}
+                  className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+                  aria-label="Next week"
                 >
-                  <div className="text-xs text-white font-medium truncate">
-                    {timeRange.workout.type.startsWith('Other: ') 
-                      ? timeRange.workout.type.substring(7)
-                      : timeRange.workout.type}
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Week Days Bar */}
+              <div className="grid grid-cols-7 gap-2">
+                {weekDays.map((day, idx) => {
+                  const dayHasWorkout = dateHasWorkout(day);
+                  const dayIsTodayInWeek = isToday(day);
+                  const isSelected = getLocalDateString(day) === getLocalDateString(selectedDate);
+                  
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedDate(day)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                        isSelected ? 'bg-dark-border' : 'hover:bg-dark-border/50'
+                      }`}
+                    >
+                      <div className="text-xs text-light-muted">{dayNames[idx]}</div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                        dayHasWorkout
+                          ? dayIsTodayInWeek
+                            ? 'bg-emerald-600/60 ring-2 ring-white' // Green with white border
+                            : 'bg-emerald-600/60' // Just green
+                          : dayIsTodayInWeek
+                            ? 'ring-2 ring-white text-white' // White ring only if no workout
+                            : ''
+                      } ${
+                        isSelected && !dayHasWorkout
+                          ? 'text-light-text'
+                          : dayHasWorkout
+                            ? 'text-white'
+                            : 'text-light-muted'
+                      }`}>
+                        {day.getDate()}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div 
+              ref={timelineRef}
+              className="border border-dark-border rounded-lg overflow-y-auto relative"
+              style={{ height: '400px' }} // Shows ~5-6 hours at a time
+            >
+              {/* Hour Labels and Grid with Workout Blocks */}
+              <div className="relative" style={{ minHeight: '1440px' }}> {/* 24 hours * 60px */}
+                {hours.map((hour) => (
+                  <div
+                    key={hour}
+                    className="relative border-t border-dark-border/30"
+                    style={{ height: '60px' }}
+                  >
+                    <div className="absolute left-2 top-1 text-[10px] text-light-muted">
+                      {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-emerald-100 truncate">
-                    {timeRange.startHour}:{String(timeRange.startMinute).padStart(2, '0')} - {timeRange.endHour}:{String(timeRange.endMinute).padStart(2, '0')}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                ))}
+
+                {/* Workout Blocks */}
+                {workoutTimeRangesForSelectedDate.map((timeRange, workoutIdx) => {
+                  const startMinutes = timeRange.startHour * 60 + timeRange.startMinute;
+                  const endMinutes = timeRange.endHour * 60 + timeRange.endMinute;
+                  const duration = endMinutes - startMinutes;
+                  const topPixels = (startMinutes / 60) * 60; // 60px per hour
+                  const heightPixels = (duration / 60) * 60;
+
+                  const handleWorkoutClick = () => {
+                    if (selectedDate) {
+                      const dateString = getLocalDateString(selectedDate);
+                      navigate(`/calendar/day/${dateString}?view=week&calendarDate=${dateString}`);
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={workoutIdx}
+                      className="absolute left-12 right-2 bg-emerald-600/60 border border-emerald-500/50 rounded px-2 py-1 cursor-pointer hover:bg-emerald-600/80 transition-colors z-10"
+                      style={{
+                        top: `${topPixels}px`,
+                        height: `${Math.max(heightPixels, 40)}px`,
+                        minHeight: '40px',
+                      }}
+                      onClick={handleWorkoutClick}
+                      title={`${timeRange.workout.type} - ${timeRange.startHour}:${String(timeRange.startMinute).padStart(2, '0')} - ${timeRange.endHour}:${String(timeRange.endMinute).padStart(2, '0')}`}
+                    >
+                      <div className="text-xs text-white font-medium truncate">
+                        {timeRange.workout.type.startsWith('Other: ') 
+                          ? timeRange.workout.type.substring(7)
+                          : timeRange.workout.type}
+                      </div>
+                      <div className="text-[10px] text-emerald-100 truncate">
+                        {timeRange.startHour}:{String(timeRange.startMinute).padStart(2, '0')} - {timeRange.endHour}:{String(timeRange.endMinute).padStart(2, '0')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     );
   };
@@ -887,29 +1014,6 @@ export const Calendar: React.FC = () => {
         {viewType === 'week' && renderWeekView()}
       </div>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={() => setIsMuscleFrequencyModalOpen(true)}
-        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-40 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full p-4 shadow-lg transition-all duration-200 min-w-[56px] min-h-[56px] flex items-center justify-center touch-manipulation"
-        aria-label="View muscle frequency"
-        title="View muscle frequency"
-      >
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      </button>
-
       {/* Workout Modal */}
       {isModalOpen && modalDate && (
         <WorkoutModal
@@ -918,14 +1022,6 @@ export const Calendar: React.FC = () => {
           onClose={handleCloseModal}
         />
       )}
-
-      {/* Muscle Frequency Modal */}
-      <MuscleFrequencyModal
-        isOpen={isMuscleFrequencyModalOpen}
-        onClose={() => setIsMuscleFrequencyModalOpen(false)}
-        muscleFrequencies={muscleFrequencies}
-        periodLabel={getPeriodLabel()}
-      />
     </div>
   );
 };
