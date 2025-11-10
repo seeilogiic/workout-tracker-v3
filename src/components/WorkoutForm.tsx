@@ -178,6 +178,8 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
     });
     setEditingExerciseId(exercise.id);
     setShowSuggestions(false);
+    // Scroll to top of page to show the edit form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelEdit = () => {
@@ -380,12 +382,14 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
               />
             ))}
           </div>
+          {/* Save Workout button is optional since exercises are saved immediately */}
+          {/* Keeping it for updating workout metadata and finishing the session */}
           <button
             onClick={onSaveWorkout}
             disabled={isSaving}
-            className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-3 text-light-text hover:border-light-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-3 text-light-text hover:border-light-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium opacity-60 hover:opacity-100"
           >
-            {isSaving ? 'Saving...' : 'Save Workout'}
+            {isSaving ? 'Saving...' : 'Finish Workout'}
           </button>
         </div>
       )}

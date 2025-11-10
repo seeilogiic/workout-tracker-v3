@@ -7,15 +7,11 @@
 export const exerciseToMuscles: Record<string, string[]> = {
   // Chest Exercises
   'Bench Press': ['chest', 'triceps', 'front-deltoids'],
-  'Barbell Bench Press': ['chest', 'triceps', 'front-deltoids'],
-  'Dumbbell Bench Press': ['chest', 'triceps', 'front-deltoids'],
   'Incline Bench Press': ['chest', 'triceps', 'front-deltoids'],
   'Decline Bench Press': ['chest', 'triceps'],
   'Chest Press': ['chest', 'triceps', 'front-deltoids'],
   'Push Ups': ['chest', 'triceps', 'front-deltoids'],
   'Chest Fly': ['chest'],
-  'Dumbbell Fly': ['chest'],
-  'Cable Fly': ['chest'],
   'Pec Deck': ['chest'],
   'Dips': ['chest', 'triceps', 'front-deltoids'],
 
@@ -35,9 +31,6 @@ export const exerciseToMuscles: Record<string, string[]> = {
   'Chin Ups': ['upper-back', 'biceps'],
   'Lat Pulldown': ['upper-back', 'biceps'],
   'Bent Over Row': ['upper-back', 'lower-back', 'biceps'],
-  'Barbell Row': ['upper-back', 'lower-back', 'biceps'],
-  'Dumbbell Row': ['upper-back', 'lower-back', 'biceps'],
-  'Cable Row': ['upper-back', 'lower-back', 'biceps'],
   'Seated Row': ['upper-back', 'lower-back', 'biceps'],
   'T-Bar Row': ['upper-back', 'lower-back', 'biceps'],
   'Deadlift': ['hamstring', 'gluteal', 'lower-back', 'trapezius'],
@@ -48,10 +41,7 @@ export const exerciseToMuscles: Record<string, string[]> = {
 
   // Bicep Exercises
   'Bicep Curl': ['biceps'],
-  'Barbell Curl': ['biceps'],
-  'Dumbbell Curl': ['biceps'],
   'Hammer Curl': ['biceps', 'forearm'],
-  'Cable Curl': ['biceps'],
   'Preacher Curl': ['biceps'],
   'Concentration Curl': ['biceps'],
 
@@ -65,7 +55,6 @@ export const exerciseToMuscles: Record<string, string[]> = {
 
   // Leg Exercises
   'Squat': ['quadriceps', 'gluteal', 'hamstring'],
-  'Barbell Squat': ['quadriceps', 'gluteal', 'hamstring'],
   'Front Squat': ['quadriceps', 'gluteal', 'hamstring'],
   'Leg Press': ['quadriceps', 'gluteal'],
   'Leg Extension': ['quadriceps'],
