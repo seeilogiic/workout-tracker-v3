@@ -4,9 +4,12 @@ import type { Workout } from '../types';
 import { 
   getLocalDateString,
   getWeekRange,
-  formatWeekRange
+  formatWeekRange,
+  parseLocalDate
 } from '../lib/dateUtils';
 import { WorkoutModal } from '../components/WorkoutModal';
+import { MuscleFrequencyModal } from '../components/MuscleFrequencyModal';
+import { getMuscleHitCounts } from '../lib/muscleMapping';
 
 type ViewType = 'year' | 'month' | 'week';
 
@@ -27,6 +30,7 @@ export const Calendar: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null); // For week view
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMuscleFrequencyModalOpen, setIsMuscleFrequencyModalOpen] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   // Get available years from workouts
@@ -125,6 +129,46 @@ export const Calendar: React.FC = () => {
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  // Calculate muscle frequencies based on current view
+  const muscleFrequencies = useMemo(() => {
+    let startDate: Date;
+    let endDate: Date;
+
+    if (viewType === 'week' && selectedDate) {
+      // Weekly view: Sunday to Saturday of the selected week
+      const weekRange = getWeekRange(selectedDate);
+      startDate = weekRange.start;
+      endDate = weekRange.end;
+    } else if (viewType === 'month') {
+      // Monthly view: 1st to last day of the current month
+      startDate = new Date(year, month, 1);
+      endDate = new Date(year, month + 1, 0);
+    } else {
+      // Yearly view: Jan 1 to Dec 31 of the selected year
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear, 11, 31);
+    }
+
+    // Get all workouts in the date range
+    const workoutsInRange = allWorkouts.filter(workout => {
+      const workoutDate = parseLocalDate(workout.date);
+      // Compare dates at midnight to ensure accurate comparison
+      const workoutDateStart = new Date(workoutDate.getFullYear(), workoutDate.getMonth(), workoutDate.getDate());
+      const startDateStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const endDateStart = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      return workoutDateStart >= startDateStart && workoutDateStart <= endDateStart;
+    });
+
+    // Collect all exercises from workouts in range
+    const allExercises = workoutsInRange.flatMap(workout => workout.exercises || []);
+
+    // Calculate muscle hit counts
+    const muscleHitCounts = getMuscleHitCounts(allExercises);
+
+    return muscleHitCounts;
+  }, [viewType, selectedDate, year, month, selectedYear, allWorkouts]);
+
   const today = new Date();
   const todayStr = getLocalDateString(today);
 
@@ -187,6 +231,18 @@ export const Calendar: React.FC = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setModalDate(null);
+  };
+
+  // Get period label for muscle frequency modal
+  const getPeriodLabel = (): string => {
+    if (viewType === 'week' && selectedDate) {
+      const weekRange = getWeekRange(selectedDate);
+      return formatWeekRange(weekRange.start, weekRange.end);
+    } else if (viewType === 'month') {
+      return `${fullMonthNames[month]} ${year}`;
+    } else {
+      return `${selectedYear}`;
+    }
   };
 
   // Handle year change
@@ -762,6 +818,29 @@ export const Calendar: React.FC = () => {
         {viewType === 'week' && renderWeekView()}
       </div>
 
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setIsMuscleFrequencyModalOpen(true)}
+        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-40 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full p-4 shadow-lg transition-all duration-200 min-w-[56px] min-h-[56px] flex items-center justify-center touch-manipulation"
+        aria-label="View muscle frequency"
+        title="View muscle frequency"
+      >
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          />
+        </svg>
+      </button>
+
       {/* Workout Modal */}
       {isModalOpen && modalDate && (
         <WorkoutModal
@@ -770,6 +849,14 @@ export const Calendar: React.FC = () => {
           onClose={handleCloseModal}
         />
       )}
+
+      {/* Muscle Frequency Modal */}
+      <MuscleFrequencyModal
+        isOpen={isMuscleFrequencyModalOpen}
+        onClose={() => setIsMuscleFrequencyModalOpen(false)}
+        muscleFrequencies={muscleFrequencies}
+        periodLabel={getPeriodLabel()}
+      />
     </div>
   );
 };
