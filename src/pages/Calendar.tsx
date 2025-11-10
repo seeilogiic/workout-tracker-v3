@@ -319,23 +319,14 @@ export const Calendar: React.FC = () => {
           <div className="w-full">
             <div className="flex gap-px">
               {/* Day Labels */}
-              <div className="flex flex-col gap-px pr-0.5">
-                {/* Empty space for month labels row */}
-                <div className="h-4 sm:h-5 mb-1"></div>
+              <div className="flex flex-col gap-px pr-0.5 mt-4 sm:mt-5">
                 {dayLabels.map((label, idx) => {
-                  // Match the exact height of boxes: h-2 = 8px (0.5rem)
-                  const boxHeight = '8px';
                   return (
                     <div
                       key={label}
-                      className={`text-[7px] sm:text-[8px] text-light-muted flex items-center justify-start ${
+                      className={`text-[7px] sm:text-[8px] text-light-muted flex items-start justify-start h-2 sm:h-2.5 md:h-2.5 ${
                         idx % 2 === 0 ? 'opacity-100' : 'opacity-0'
                       }`}
-                      style={{ 
-                        height: boxHeight, 
-                        minHeight: boxHeight,
-                        maxHeight: boxHeight
-                      }}
                     >
                       {idx % 2 === 0 ? label : ''}
                     </div>

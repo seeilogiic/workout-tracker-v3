@@ -104,26 +104,35 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
         setCurrentExercises((prev) => [...prev, savedExercise]);
       }
     } else {
-      // For new workouts, create a temporary exercise
-      const tempExercise: Exercise = {
-        id: `temp-${Date.now()}-${Math.random()}`,
-        workout_id: 'temp',
-        exercise_name: exerciseData.exercise_name,
-        sets: exerciseData.sets,
-        reps: exerciseData.reps,
-        weight: exerciseData.weight,
-        equipment: exerciseData.equipment,
-        notes: exerciseData.notes || null,
-        created_at: new Date().toISOString(),
-      };
+      // For new workouts, create the workout first if it doesn't exist
+      let workoutId = editingWorkoutId;
       
-      setCurrentExercises((prev) => [...prev, tempExercise]);
+      if (!workoutId && currentWorkoutType) {
+        // Create the workout when adding the first exercise
+        workoutId = await createWorkout(currentWorkoutDate, currentWorkoutType);
+        
+        if (!workoutId) {
+          console.error('Failed to create workout');
+          return;
+        }
+        
+        // Set the workout ID so subsequent exercises use it
+        setEditingWorkoutId(workoutId);
+      }
+      
+      // Save the exercise immediately to Supabase
+      if (workoutId) {
+        const savedExercise = await addExercise(workoutId, exerciseData);
+        if (savedExercise) {
+          setCurrentExercises((prev) => [...prev, savedExercise]);
+        }
+      }
     }
-  }, [editingWorkoutId]);
+  }, [editingWorkoutId, currentWorkoutType, currentWorkoutDate]);
 
   const editExerciseInWorkout = useCallback(async (exerciseId: string, exerciseData: Partial<ExerciseData>) => {
-    // If editing an existing workout and exercise is not a temp ID, update in database
-    if (editingWorkoutId && !exerciseId.startsWith('temp-')) {
+    // If exercise is not a temp ID, update in database immediately
+    if (!exerciseId.startsWith('temp-')) {
       const updatedExercise = await updateExercise(exerciseId, exerciseData);
       if (updatedExercise) {
         setCurrentExercises((prev) =>
@@ -133,7 +142,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
         );
       }
     } else {
-      // For temp exercises or new workouts, just update local state
+      // For temp exercises (shouldn't happen with new flow, but handle gracefully)
       setCurrentExercises((prev) =>
         prev.map((exercise) =>
           exercise.id === exerciseId
@@ -142,20 +151,20 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
         )
       );
     }
-  }, [editingWorkoutId]);
+  }, []);
 
   const removeExerciseFromWorkout = useCallback(async (exerciseId: string) => {
-    // If editing an existing workout and exercise is not a temp ID, delete from database
-    if (editingWorkoutId && !exerciseId.startsWith('temp-')) {
+    // If exercise is not a temp ID, delete from database immediately
+    if (!exerciseId.startsWith('temp-')) {
       const success = await deleteExercise(exerciseId);
       if (success) {
         setCurrentExercises((prev) => prev.filter((exercise) => exercise.id !== exerciseId));
       }
     } else {
-      // For temp exercises or new workouts, just remove from local state
+      // For temp exercises (shouldn't happen with new flow, but handle gracefully)
       setCurrentExercises((prev) => prev.filter((exercise) => exercise.id !== exerciseId));
     }
-  }, [editingWorkoutId]);
+  }, []);
 
   const clearCurrentWorkout = useCallback(() => {
     setCurrentWorkoutType(null);
@@ -181,7 +190,9 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   const saveWorkout = useCallback(async (): Promise<boolean> => {
-    if (!currentWorkoutType || currentExercises.length === 0) {
+    // Since exercises are now saved immediately, this function just ensures
+    // the workout metadata is up to date and refreshes the list
+    if (!currentWorkoutType) {
       return false;
     }
 
@@ -189,49 +200,13 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     try {
       if (editingWorkoutId) {
-        // Update existing workout
+        // Update workout metadata (date/type) if needed
         const success = await updateWorkout(editingWorkoutId, currentWorkoutDate, currentWorkoutType);
         if (!success) {
           return false;
         }
-
-        // Add any new temp exercises to the workout
-        for (const exercise of currentExercises) {
-          if (exercise.id.startsWith('temp-')) {
-            const exerciseData: ExerciseData = {
-              exercise_name: exercise.exercise_name,
-              sets: exercise.sets,
-              reps: exercise.reps,
-              weight: exercise.weight,
-              equipment: exercise.equipment,
-              notes: exercise.notes || null,
-            };
-            
-            await addExercise(editingWorkoutId, exerciseData);
-          }
-        }
-      } else {
-        // Create new workout
-        const workoutId = await createWorkout(currentWorkoutDate, currentWorkoutType);
-        
-        if (!workoutId) {
-          return false;
-        }
-
-        // Add all exercises to the workout
-        for (const exercise of currentExercises) {
-          const exerciseData: ExerciseData = {
-            exercise_name: exercise.exercise_name,
-            sets: exercise.sets,
-            reps: exercise.reps,
-            weight: exercise.weight,
-            equipment: exercise.equipment,
-            notes: exercise.notes || null,
-          };
-          
-          await addExercise(workoutId, exerciseData);
-        }
       }
+      // If no editingWorkoutId, the workout was already created when first exercise was added
 
       // Refresh workouts
       await refreshWorkouts();
@@ -246,7 +221,7 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     } finally {
       setIsSaving(false);
     }
-  }, [currentWorkoutType, currentWorkoutDate, currentExercises, editingWorkoutId, refreshWorkouts, clearCurrentWorkout]);
+  }, [currentWorkoutType, currentWorkoutDate, editingWorkoutId, refreshWorkouts, clearCurrentWorkout]);
 
   const removeWorkout = useCallback(async (workoutId: string): Promise<boolean> => {
     try {
