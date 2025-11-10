@@ -28,7 +28,7 @@ const formatWorkoutType = (type: string): string => {
 export const WorkoutModal: React.FC<WorkoutModalProps> = ({ workouts, date, onClose }) => {
   const navigate = useNavigate();
 
-  const handleWorkoutClick = (workoutId: string) => {
+  const handleWorkoutClick = () => {
     // Navigate to day summary instead of individual workout
     const dateString = getLocalDateString(date);
     navigate(`/calendar/day/${dateString}?view=month&calendarDate=${dateString}`);
@@ -82,7 +82,7 @@ export const WorkoutModal: React.FC<WorkoutModalProps> = ({ workouts, date, onCl
               {workouts.map((workout) => (
                 <button
                   key={workout.id}
-                  onClick={() => handleWorkoutClick(workout.id)}
+                  onClick={handleWorkoutClick}
                   className="w-full bg-dark-surface border border-dark-border rounded-lg p-4 text-left hover:border-light-muted active:bg-dark-border transition-all duration-200 group"
                 >
                   <div className="flex justify-between items-start">
