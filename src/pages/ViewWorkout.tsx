@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useWorkout } from '../context/WorkoutContext';
 import { WorkoutEntry } from '../components/WorkoutEntry';
 import { MuscleMap } from '../components/MuscleMap';
@@ -13,12 +13,19 @@ import { parseLocalDate } from '../lib/dateUtils';
 export const ViewWorkout: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { removeWorkout, refreshWorkouts } = useWorkout();
   const [workout, setWorkout] = useState<Workout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExercisesExpanded, setIsExercisesExpanded] = useState(false);
   const error = getSupabaseError();
+
+  // Get date from URL params if available
+  const dateParam = searchParams.get('date');
+  const viewParam = searchParams.get('view');
+  const calendarDateParam = searchParams.get('calendarDate');
+  const backDate = dateParam ? parseLocalDate(dateParam) : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -88,6 +95,27 @@ export const ViewWorkout: React.FC = () => {
     });
   };
 
+  const formatBackDate = (date: Date): string => {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+
+  const handleBack = () => {
+    if (backDate && viewParam && calendarDateParam) {
+      // Navigate back to calendar with view state preserved
+      navigate(`/calendar?view=${viewParam}&date=${calendarDateParam}`);
+    } else if (backDate) {
+      // Navigate back to calendar without view state
+      navigate('/calendar');
+    } else {
+      // Fallback to browser back
+      navigate(-1);
+    }
+  };
+
   const formatWorkoutType = (type: string): string => {
     if (type.startsWith('Other: ')) {
       return type.substring(7);
@@ -132,13 +160,13 @@ export const ViewWorkout: React.FC = () => {
         <div className="mb-6 flex justify-between items-start">
           <div>
             <button
-              onClick={() => navigate(-1)}
+              onClick={handleBack}
               className="text-light-muted hover:text-light-text transition-colors mb-4 flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back
+              {backDate ? formatBackDate(backDate) : 'Back'}
             </button>
             <h1 className="text-3xl font-bold text-light-text mb-2">
               {formatWorkoutType(workout.type)} Workout
