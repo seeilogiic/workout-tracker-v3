@@ -1,14 +1,33 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useWorkout } from '../context/WorkoutContext';
 import type { Workout } from '../types';
-import { getLocalDateString } from '../lib/dateUtils';
+import { 
+  getLocalDateString,
+  getWeekRange,
+  formatWeekRange
+} from '../lib/dateUtils';
 import { WorkoutModal } from '../components/WorkoutModal';
+
+type ViewType = 'year' | 'month' | 'week';
+
+interface WorkoutTimeRange {
+  workout: Workout;
+  startTime: Date;
+  endTime: Date;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+}
 
 export const Calendar: React.FC = () => {
   const { allWorkouts } = useWorkout();
+  const [viewType, setViewType] = useState<ViewType>('year');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null); // For week view
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Get available years from workouts
   const availableYears = useMemo(() => {
@@ -37,29 +56,38 @@ export const Calendar: React.FC = () => {
   // Update selected year when default changes (e.g., when data loads)
   useEffect(() => {
     setSelectedYear(defaultYear);
+    setCurrentDate(new Date(defaultYear, 0, 1));
   }, [defaultYear]);
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  const monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-  const daysInMonth = lastDayOfMonth.getDate();
-  const startingDayOfWeek = firstDayOfMonth.getDay();
-
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
+  // Helper functions - defined before useMemo hooks that use them
+  // Calculate workout time ranges for timeline display
+  const getWorkoutTimeRange = (workout: Workout): WorkoutTimeRange | null => {
+    if (!workout.created_at) return null;
+    
+    const startTime = new Date(workout.created_at);
+    let endTime = startTime;
+    
+    // Use last exercise's created_at as end time if available
+    if (workout.exercises && workout.exercises.length > 0) {
+      const exerciseTimes = workout.exercises
+        .map(ex => ex.created_at ? new Date(ex.created_at) : null)
+        .filter((date): date is Date => date !== null)
+        .sort((a, b) => b.getTime() - a.getTime()); // Sort descending
+      
+      if (exerciseTimes.length > 0) {
+        endTime = exerciseTimes[0]; // Most recent exercise
+      }
+    }
+    
+    return {
+      workout,
+      startTime,
+      endTime,
+      startHour: startTime.getHours(),
+      startMinute: startTime.getMinutes(),
+      endHour: endTime.getHours(),
+      endMinute: endTime.getMinutes(),
+    };
   };
 
   // Get workouts for a specific date
@@ -68,19 +96,92 @@ export const Calendar: React.FC = () => {
     return allWorkouts.filter(workout => workout.date === dateStr);
   };
 
+  // Calculate workout time ranges for selected date (for week view)
+  const workoutTimeRangesForSelectedDate = useMemo(() => {
+    if (!selectedDate || viewType !== 'week') return [];
+    const workouts = getWorkoutsForDate(selectedDate);
+    return workouts
+      .map(getWorkoutTimeRange)
+      .filter((range): range is WorkoutTimeRange => range !== null)
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  }, [selectedDate, viewType, allWorkouts]);
+
+  // Calculate initial scroll position (1 hour before first workout)
+  const initialScrollHour = useMemo(() => {
+    if (workoutTimeRangesForSelectedDate.length === 0) return 8; // Default to 8 AM if no workouts
+    const firstWorkout = workoutTimeRangesForSelectedDate[0];
+    const firstHour = firstWorkout.startHour;
+    return Math.max(0, firstHour - 1);
+  }, [workoutTimeRangesForSelectedDate]);
+
+  // Scroll to initial position when entering week view or date changes
+  useEffect(() => {
+    if (viewType === 'week' && selectedDate && timelineRef.current) {
+      const hourHeight = 60; // Height per hour in pixels
+      const scrollPosition = initialScrollHour * hourHeight;
+      timelineRef.current.scrollTop = scrollPosition;
+    }
+  }, [viewType, selectedDate, initialScrollHour]);
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const today = new Date();
+  const todayStr = getLocalDateString(today);
+
+  const fullMonthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Navigation functions
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
+
+  // Week navigation functions
+  const goToPreviousWeek = () => {
+    if (selectedDate) {
+      const weekRange = getWeekRange(selectedDate);
+      const newDate = new Date(weekRange.start);
+      newDate.setDate(newDate.getDate() - 7);
+      setSelectedDate(newDate);
+    }
+  };
+
+  const goToNextWeek = () => {
+    if (selectedDate) {
+      const weekRange = getWeekRange(selectedDate);
+      const newDate = new Date(weekRange.start);
+      newDate.setDate(newDate.getDate() + 7);
+      setSelectedDate(newDate);
+    }
+  };
+
   // Check if a date has workouts
   const dateHasWorkout = (date: Date): boolean => {
     return getWorkoutsForDate(date).length > 0;
   };
 
+  // Check if a date is today
+  const isToday = (date: Date): boolean => {
+    return getLocalDateString(date) === todayStr;
+  };
+
   const handleDayClick = (day: number) => {
     const clickedDate = new Date(year, month, day);
-    const workoutsForDate = getWorkoutsForDate(clickedDate);
-    
-    if (workoutsForDate.length > 0) {
-      setModalDate(clickedDate);
-      setIsModalOpen(true);
-    }
+    setSelectedDate(clickedDate);
+    setViewType('week');
+  };
+
+  const handleMonthClick = (monthIndex: number) => {
+    setCurrentDate(new Date(selectedYear, monthIndex, 1));
+    setViewType('month');
   };
 
   const handleCloseModal = () => {
@@ -88,15 +189,125 @@ export const Calendar: React.FC = () => {
     setModalDate(null);
   };
 
-  const handleYearCalendarDayClick = (date: Date) => {
-    const workoutsForDate = getWorkoutsForDate(date);
-    if (workoutsForDate.length > 0) {
-      setModalDate(date);
-      setIsModalOpen(true);
-    }
+  // Handle year change
+  const handleYearChange = (newYear: number) => {
+    setSelectedYear(newYear);
+    setCurrentDate(new Date(newYear, 0, 1));
   };
 
+  const goToPreviousYear = () => {
+    const newYear = selectedYear - 1;
+    handleYearChange(newYear);
+  };
+
+  const goToNextYear = () => {
+    const newYear = selectedYear + 1;
+    handleYearChange(newYear);
+  };
+
+  // Render year view with mini calendars showing boxes instead of dates
+  const renderYearView = () => {
+    const months = Array.from({ length: 12 }, (_, i) => i);
+
+    return (
+      <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
+        {/* Year Navigation */}
+        <div className="mb-4 flex items-center justify-center gap-4">
+          <button
+            onClick={goToPreviousYear}
+            className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+            aria-label="Previous year"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <div className="text-lg sm:text-xl font-semibold text-light-text">
+            {selectedYear}
+          </div>
+
+          <button
+            onClick={goToNextYear}
+            className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+            aria-label="Next year"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Month Grid */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          {months.map((monthIndex) => {
+            const monthStart = new Date(selectedYear, monthIndex, 1);
+            const monthEnd = new Date(selectedYear, monthIndex + 1, 0);
+            const daysInMonth = monthEnd.getDate();
+            const firstDayOfWeek = monthStart.getDay();
+            
+            // Get dates for this month
+            const monthDates: (number | null)[] = [];
+            for (let i = 0; i < firstDayOfWeek; i++) {
+              monthDates.push(null);
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+              monthDates.push(day);
+            }
+
+            return (
+              <button
+                key={monthIndex}
+                onClick={() => handleMonthClick(monthIndex)}
+                className="text-left p-2 sm:p-3 rounded-lg hover:bg-dark-border transition-colors"
+              >
+                <div className="text-sm sm:text-base font-semibold text-light-text mb-2">
+                  {fullMonthNames[monthIndex]}
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {dayNames.map(day => (
+                    <div key={day} className="text-light-muted text-center py-0.5 text-[8px] sm:text-[9px]">
+                      {day[0]}
+                    </div>
+                  ))}
+                  {monthDates.map((day, idx) => {
+                    if (day === null) {
+                      return <div key={`empty-${idx}`} className="aspect-square" />;
+                    }
+                    const dayDate = new Date(selectedYear, monthIndex, day);
+                    const hasWorkout = dateHasWorkout(dayDate);
+                    const dayIsToday = isToday(dayDate);
+                    
+                    return (
+                      <div
+                        key={day}
+                        className={`aspect-square rounded ${
+                          hasWorkout
+                            ? dayIsToday
+                              ? 'bg-emerald-600/60 ring-1 ring-white' // Green with white border
+                              : 'bg-emerald-600/60' // Just green
+                            : dayIsToday
+                              ? 'ring-1 ring-white' // White ring only if no workout
+                              : 'bg-dark-border'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Render monthly calendar days
   const renderCalendarDays = () => {
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startingDayOfWeek = firstDayOfMonth.getDay();
     const days = [];
     
     // Empty cells for days before the first day of the month
@@ -110,15 +321,22 @@ export const Calendar: React.FC = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dayDate = new Date(year, month, day);
       const hasWorkout = dateHasWorkout(dayDate);
+      const dayIsToday = isToday(dayDate);
       
       days.push(
         <button
           key={day}
           onClick={() => handleDayClick(day)}
-          className="aspect-square flex items-center justify-center text-light-text rounded-lg active:bg-dark-border transition-colors touch-manipulation text-sm sm:text-base"
+          className="aspect-square flex items-center justify-center rounded-lg active:bg-dark-border transition-colors touch-manipulation text-sm sm:text-base"
         >
           <span className={`flex items-center justify-center w-8 h-8 rounded-full ${
-            hasWorkout ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]' : ''
+            hasWorkout
+              ? dayIsToday
+                ? 'bg-emerald-600/60 ring-2 ring-white text-white' // Green with white border
+                : 'bg-emerald-600/60 text-white' // Just green
+              : dayIsToday
+                ? 'ring-2 ring-white text-white' // White ring only if no workout
+                : 'text-light-text'
           }`}>
             {day}
           </span>
@@ -129,85 +347,406 @@ export const Calendar: React.FC = () => {
     return days;
   };
 
-  // GitHub-style calendar: Generate all days from Jan 1 to Dec 31 for selected year
-  const githubCalendarData = useMemo(() => {
-    const startDate = new Date(selectedYear, 0, 1); // Jan 1
-    const endDate = new Date(selectedYear, 11, 31); // Dec 31
-    
-    // Filter workouts for the selected year and create a Set of workout dates for quick lookup
-    const workoutDates = new Set(
-      allWorkouts
-        .filter(workout => {
-          const workoutYear = new Date(workout.date).getFullYear();
-          return workoutYear === selectedYear;
-        })
-        .map(workout => workout.date)
+  // Render monthly view
+  const renderMonthlyView = () => {
+    return (
+      <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
+        {/* Back Button */}
+        <button
+          onClick={() => setViewType('year')}
+          className="mb-4 text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm sm:text-base">{year}</span>
+        </button>
+
+        {/* Month Header with Navigation */}
+        <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <button
+            onClick={goToPreviousMonth}
+            className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+            aria-label="Previous month"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <h2 className="text-lg sm:text-xl font-semibold text-light-text px-2">
+            {fullMonthNames[month]} {year}
+          </h2>
+
+          <button
+            onClick={goToNextMonth}
+            className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+            aria-label="Next month"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          {/* Day Headers */}
+          {dayNames.map((day) => (
+            <div
+              key={day}
+              className="aspect-square flex items-center justify-center text-light-muted text-xs sm:text-sm font-medium"
+            >
+              {day}
+            </div>
+          ))}
+
+          {/* Calendar Days */}
+          {renderCalendarDays()}
+        </div>
+      </div>
     );
+  };
 
-    // Generate all days of the year
-    const days: Array<{ date: Date; hasWorkout: boolean }> = [];
-    const currentDate = new Date(startDate);
-    
-    while (currentDate <= endDate) {
-      const dateStr = getLocalDateString(currentDate);
-      days.push({
-        date: new Date(currentDate),
-        hasWorkout: workoutDates.has(dateStr),
-      });
-      currentDate.setDate(currentDate.getDate() + 1);
+  // Render week view with single day timeline
+  const renderWeekView = () => {
+    if (!selectedDate) return null;
+
+    // Get current week range
+    const weekRange = getWeekRange(selectedDate);
+    const weekDays: Date[] = [];
+    const startDate = new Date(weekRange.start);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startDate);
+      day.setDate(startDate.getDate() + i);
+      weekDays.push(day);
     }
 
-    // Group days by week (starting from the first day of the year's week)
-    const weeks: Array<Array<{ date: Date; hasWorkout: boolean } | null>> = [];
-    const firstDayOfYear = startDate.getDay(); // 0 = Sunday, 6 = Saturday
-    
-    // Add empty cells for days before Jan 1
-    const firstWeek: Array<{ date: Date; hasWorkout: boolean } | null> = [];
-    for (let i = 0; i < firstDayOfYear; i++) {
-      firstWeek.push(null);
-    }
-    
-    // Add days to weeks
-    let currentWeek = [...firstWeek];
-    days.forEach((day) => {
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-      currentWeek.push(day);
-    });
-    
-    // Add remaining days to last week
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) {
-        currentWeek.push(null);
-      }
-      weeks.push(currentWeek);
-    }
+    // Generate all hours (0-23)
+    const hours = Array.from({ length: 24 }, (_, i) => i);
 
-    return weeks;
-  }, [allWorkouts, selectedYear]);
+    return (
+      <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
+        {/* Back Button */}
+        <button
+          onClick={() => {
+            setViewType('month');
+            setCurrentDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+            setSelectedDate(null);
+          }}
+          className="mb-4 text-light-muted hover:text-light-text transition-colors flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm sm:text-base">{fullMonthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}</span>
+        </button>
 
-  // Calculate which week each month starts in
-  const monthPositions = useMemo(() => {
-    const positions: Map<number, number> = new Map(); // month index -> week index
-    const startDate = new Date(selectedYear, 0, 1);
-    const firstDayOfYear = startDate.getDay();
-    
-    // Calculate week index for each month's first day
-    // The first week has firstDayOfYear empty cells, then the days start
-    for (let month = 0; month < 12; month++) {
-      const monthStart = new Date(selectedYear, month, 1);
-      const dayOfYear = Math.floor((monthStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      // Week index accounts for the first week having empty cells
-      const weekIndex = Math.floor((dayOfYear + firstDayOfYear) / 7);
-      positions.set(month, weekIndex);
-    }
-    
-    return positions;
-  }, [selectedYear]);
+        {/* Week Selector Bar */}
+        <div className="mb-4">
+          {/* Week Navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={goToPreviousWeek}
+              className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+              aria-label="Previous week"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
 
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            <div className="text-sm sm:text-base text-light-text font-medium">
+              {formatWeekRange(weekRange.start, weekRange.end)}
+            </div>
+
+            <button
+              onClick={goToNextWeek}
+              className="min-w-[44px] min-h-[44px] p-2 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
+              aria-label="Next week"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Week Days Bar */}
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map((day, idx) => {
+              const dayHasWorkout = dateHasWorkout(day);
+              const dayIsTodayInWeek = isToday(day);
+              const isSelected = getLocalDateString(day) === getLocalDateString(selectedDate);
+              
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedDate(day)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                    isSelected ? 'bg-dark-border' : 'hover:bg-dark-border/50'
+                  }`}
+                >
+                  <div className="text-xs text-light-muted">{dayNames[idx]}</div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    dayHasWorkout
+                      ? dayIsTodayInWeek
+                        ? 'bg-emerald-600/60 ring-2 ring-white' // Green with white border
+                        : 'bg-emerald-600/60' // Just green
+                      : dayIsTodayInWeek
+                        ? 'ring-2 ring-white text-white' // White ring only if no workout
+                        : ''
+                  } ${
+                    isSelected && !dayHasWorkout
+                      ? 'text-light-text'
+                      : dayHasWorkout
+                        ? 'text-white'
+                        : 'text-light-muted'
+                  }`}>
+                    {day.getDate()}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div 
+          ref={timelineRef}
+          className="border border-dark-border rounded-lg overflow-y-auto relative"
+          style={{ height: '400px' }} // Shows ~5-6 hours at a time
+        >
+          {/* Hour Labels and Grid with Workout Blocks */}
+          <div className="relative" style={{ minHeight: '1440px' }}> {/* 24 hours * 60px */}
+            {hours.map((hour) => (
+              <div
+                key={hour}
+                className="relative border-t border-dark-border/30"
+                style={{ height: '60px' }}
+              >
+                <div className="absolute left-2 top-1 text-[10px] text-light-muted">
+                  {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                </div>
+              </div>
+            ))}
+
+            {/* Workout Blocks */}
+            {workoutTimeRangesForSelectedDate.map((timeRange, workoutIdx) => {
+              const startMinutes = timeRange.startHour * 60 + timeRange.startMinute;
+              const endMinutes = timeRange.endHour * 60 + timeRange.endMinute;
+              const duration = endMinutes - startMinutes;
+              const topPixels = (startMinutes / 60) * 60; // 60px per hour
+              const heightPixels = (duration / 60) * 60;
+
+              return (
+                <div
+                  key={workoutIdx}
+                  className="absolute left-12 right-2 bg-emerald-600/60 border border-emerald-500/50 rounded px-2 py-1 cursor-pointer hover:bg-emerald-600/80 transition-colors z-10"
+                  style={{
+                    top: `${topPixels}px`,
+                    height: `${Math.max(heightPixels, 40)}px`,
+                    minHeight: '40px',
+                  }}
+                  onClick={() => {
+                    setModalDate(selectedDate);
+                    setIsModalOpen(true);
+                  }}
+                  title={`${timeRange.workout.type} - ${timeRange.startHour}:${String(timeRange.startMinute).padStart(2, '0')} - ${timeRange.endHour}:${String(timeRange.endMinute).padStart(2, '0')}`}
+                >
+                  <div className="text-xs text-white font-medium truncate">
+                    {timeRange.workout.type.startsWith('Other: ') 
+                      ? timeRange.workout.type.substring(7)
+                      : timeRange.workout.type}
+                  </div>
+                  <div className="text-[10px] text-emerald-100 truncate">
+                    {timeRange.startHour}:{String(timeRange.startMinute).padStart(2, '0')} - {timeRange.endHour}:{String(timeRange.endMinute).padStart(2, '0')}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ============================================
+   * LEGACY CODE - UNUSED
+   * This code was for the previous yearly calendar view
+   * Kept for reference but not currently used
+   * ============================================ */
+  
+  // GitHub-style calendar: Generate all days from Jan 1 to Dec 31 for selected year
+  // const githubCalendarData = useMemo(() => {
+  //   const startDate = new Date(selectedYear, 0, 1); // Jan 1
+  //   const endDate = new Date(selectedYear, 11, 31); // Dec 31
+  //   
+  //   // Filter workouts for the selected year and create a Set of workout dates for quick lookup
+  //   const workoutDates = new Set(
+  //     allWorkouts
+  //       .filter(workout => {
+  //         const workoutYear = new Date(workout.date).getFullYear();
+  //         return workoutYear === selectedYear;
+  //       })
+  //       .map(workout => workout.date)
+  //   );
+
+  //   // Generate all days of the year
+  //   const days: Array<{ date: Date; hasWorkout: boolean }> = [];
+  //   const currentDate = new Date(startDate);
+  //   
+  //   while (currentDate <= endDate) {
+  //     const dateStr = getLocalDateString(currentDate);
+  //     days.push({
+  //       date: new Date(currentDate),
+  //       hasWorkout: workoutDates.has(dateStr),
+  //     });
+  //     currentDate.setDate(currentDate.getDate() + 1);
+  //   }
+
+  //   // Group days by week (starting from the first day of the year's week)
+  //   const weeks: Array<Array<{ date: Date; hasWorkout: boolean } | null>> = [];
+  //   const firstDayOfYear = startDate.getDay(); // 0 = Sunday, 6 = Saturday
+  //   
+  //   // Add empty cells for days before Jan 1
+  //   const firstWeek: Array<{ date: Date; hasWorkout: boolean } | null> = [];
+  //   for (let i = 0; i < firstDayOfYear; i++) {
+  //     firstWeek.push(null);
+  //   }
+  //   
+  //   // Add days to weeks
+  //   let currentWeek = [...firstWeek];
+  //   days.forEach((day) => {
+  //     if (currentWeek.length === 7) {
+  //       weeks.push(currentWeek);
+  //       currentWeek = [];
+  //     }
+  //     currentWeek.push(day);
+  //   });
+  //   
+  //   // Add remaining days to last week
+  //   if (currentWeek.length > 0) {
+  //     while (currentWeek.length < 7) {
+  //       currentWeek.push(null);
+  //     }
+  //     weeks.push(currentWeek);
+  //   }
+
+  //   return weeks;
+  // }, [allWorkouts, selectedYear]);
+
+  // // Calculate which week each month starts in
+  // const monthPositions = useMemo(() => {
+  //   const positions: Map<number, number> = new Map(); // month index -> week index
+  //   const startDate = new Date(selectedYear, 0, 1);
+  //   const firstDayOfYear = startDate.getDay();
+  //   
+  //   // Calculate week index for each month's first day
+  //   // The first week has firstDayOfYear empty cells, then the days start
+  //   for (let month = 0; month < 12; month++) {
+  //     const monthStart = new Date(selectedYear, month, 1);
+  //     const dayOfYear = Math.floor((monthStart.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  //     // Week index accounts for the first week having empty cells
+  //     const weekIndex = Math.floor((dayOfYear + firstDayOfYear) / 7);
+  //     positions.set(month, weekIndex);
+  //   }
+  //   
+  //   return positions;
+  // }, [selectedYear]);
+
+  // const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // // Render yearly view (LEGACY - UNUSED)
+  // const renderYearlyView = () => {
+  //   return (
+  //     <div className="bg-dark-surface border border-dark-border rounded-2xl p-2 sm:p-3 md:p-4 min-h-[600px] flex flex-col">
+  //       <div className="flex-1 flex flex-col">
+  //         <div className="w-full flex-1">
+  //           <div className="flex gap-px h-full">
+  //             {/* Day Labels */}
+  //             <div className="flex flex-col gap-px pr-0.5 mt-4 sm:mt-5">
+  //               {dayLabels.map((label, idx) => {
+  //                 return (
+  //                   <div
+  //                     key={label}
+  //                     className={`text-[7px] sm:text-[8px] text-light-muted flex items-start justify-start h-2 sm:h-2.5 md:h-2.5 ${
+  //                       idx % 2 === 0 ? 'opacity-100' : 'opacity-0'
+  //                     }`}
+  //                   >
+  //                     {idx % 2 === 0 ? label : ''}
+  //                   </div>
+  //                 );
+  //               })}
+  //             </div>
+
+  //             {/* Calendar Grid */}
+  //             <div className="flex gap-px flex-1 min-w-0 relative">
+  //               {/* Month Labels Row */}
+  //               <div className="absolute top-0 left-0 right-0 flex gap-px" style={{ height: '16px' }}>
+  //                 {githubCalendarData.map((_week, weekIdx) => {
+  //                   // Check if this week contains the first day of any month
+  //                   const monthForWeek = Array.from(monthPositions.entries()).find(
+  //                     ([_month, weekIndex]) => weekIndex === weekIdx
+  //                   );
+  //                   
+  //                   return (
+  //                     <div
+  //                       key={`month-label-${weekIdx}`}
+  //                       className="flex-1 min-w-0 flex items-start justify-start"
+  //                     >
+  //                       {monthForWeek && (
+  //                         <span className="text-[9px] sm:text-[10px] text-light-muted px-0.5">
+  //                           {monthNames[monthForWeek[0]]}
+  //                         </span>
+  //                       )}
+  //                     </div>
+  //                   );
+  //                 })}
+  //               </div>
+
+  //               {/* Calendar Days */}
+  //               <div className="flex gap-px flex-1 min-w-0 mt-4 sm:mt-5">
+  //                 {githubCalendarData.map((week, weekIdx) => (
+  //                   <div key={weekIdx} className="flex flex-col gap-px flex-1 min-w-0">
+  //                     {week.map((day, dayIdx) => {
+  //                       if (day === null) {
+  //                         return (
+  //                           <div
+  //                             key={`empty-${weekIdx}-${dayIdx}`}
+  //                             className="w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm"
+  //                           />
+  //                         );
+  //                       }
+  //                       
+  //                       return (
+  //                         <div
+  //                           key={`${day.date.toISOString()}`}
+  //                           className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm ${
+  //                             day.hasWorkout
+  //                               ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)]'
+  //                               : 'bg-dark-border'
+  //                           }`}
+  //                           title={day.date.toLocaleDateString()}
+  //                         />
+  //                       );
+  //                     })}
+  //                   </div>
+  //                 ))}
+  //               </div>
+  //             </div>
+  //           </div>
+  //         </div>
+  //       </div>
+
+  //       {/* Stats Placeholder - Takes remaining space to match other views */}
+  //       <div className="mt-6 pt-6 border-t border-dark-border flex-1 flex items-center justify-center min-h-[100px]">
+  //         <p className="text-light-muted text-sm text-center">
+  //           Stats coming soon...
+  //         </p>
+  //       </div>
+  //     </div>
+  //   );
+  // };
 
   return (
     <div className="min-h-screen bg-black p-3 sm:p-4 md:p-8 pb-safe">
@@ -217,183 +756,10 @@ export const Calendar: React.FC = () => {
           <p className="text-sm sm:text-base text-light-muted">View your calendar</p>
         </div>
 
-        <div className="bg-dark-surface border border-dark-border rounded-2xl p-3 sm:p-4 md:p-6">
-          <p className="text-light-muted text-sm mb-4">
-            Tap a day with a workout to view details
-          </p>
-          {/* Month Header with Navigation */}
-          <div className="flex items-center justify-between mb-4 sm:mb-5">
-            <button
-              onClick={goToPreviousMonth}
-              className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
-              aria-label="Previous month"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-
-            <h2 className="text-lg sm:text-xl font-semibold text-light-text px-2">
-              {year} {monthNames[month]}
-            </h2>
-
-            <button
-              onClick={goToNextMonth}
-              className="min-w-[44px] min-h-[44px] p-3 rounded-full text-light-text active:bg-dark-border active:text-light-muted transition-colors touch-manipulation"
-              aria-label="Next month"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-            {/* Day Headers */}
-            {dayNames.map((day) => (
-              <div
-                key={day}
-                className="aspect-square flex items-center justify-center text-light-muted text-xs sm:text-sm font-medium"
-              >
-                {day}
-              </div>
-            ))}
-
-            {/* Calendar Days */}
-            {renderCalendarDays()}
-          </div>
-        </div>
-
-        {/* GitHub-style Year Calendar */}
-        <div className="mt-6 bg-dark-surface border border-dark-border rounded-2xl p-2 sm:p-3 md:p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg sm:text-xl font-semibold text-light-text">
-              Yearly Activity
-            </h2>
-            {availableYears.length > 0 ? (
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-dark-surface border border-dark-border rounded-lg px-3 py-1.5 text-light-text text-sm sm:text-base focus:outline-none focus:border-light-muted transition-colors touch-manipulation"
-              >
-                {availableYears.map(year => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-dark-surface border border-dark-border rounded-lg px-3 py-1.5 text-light-text text-sm sm:text-base focus:outline-none focus:border-light-muted transition-colors touch-manipulation"
-              >
-                <option value={selectedYear}>{selectedYear}</option>
-              </select>
-            )}
-          </div>
-          
-          <div className="w-full">
-            <div className="flex gap-px">
-              {/* Day Labels */}
-              <div className="flex flex-col gap-px pr-0.5 mt-4 sm:mt-5">
-                {dayLabels.map((label, idx) => {
-                  return (
-                    <div
-                      key={label}
-                      className={`text-[7px] sm:text-[8px] text-light-muted flex items-start justify-start h-2 sm:h-2.5 md:h-2.5 ${
-                        idx % 2 === 0 ? 'opacity-100' : 'opacity-0'
-                      }`}
-                    >
-                      {idx % 2 === 0 ? label : ''}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="flex gap-px flex-1 min-w-0 relative">
-                {/* Month Labels Row */}
-                <div className="absolute top-0 left-0 right-0 flex gap-px" style={{ height: '16px' }}>
-                  {githubCalendarData.map((_week, weekIdx) => {
-                    // Check if this week contains the first day of any month
-                    const monthForWeek = Array.from(monthPositions.entries()).find(
-                      ([_month, weekIndex]) => weekIndex === weekIdx
-                    );
-                    
-                    return (
-                      <div
-                        key={`month-label-${weekIdx}`}
-                        className="flex-1 min-w-0 flex items-start justify-start"
-                      >
-                        {monthForWeek && (
-                          <span className="text-[9px] sm:text-[10px] text-light-muted px-0.5">
-                            {monthNames[monthForWeek[0]]}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Calendar Days */}
-                <div className="flex gap-px flex-1 min-w-0 mt-4 sm:mt-5">
-                  {githubCalendarData.map((week, weekIdx) => (
-                    <div key={weekIdx} className="flex flex-col gap-px flex-1 min-w-0">
-                      {week.map((day, dayIdx) => {
-                        if (day === null) {
-                          return (
-                            <div
-                              key={`empty-${weekIdx}-${dayIdx}`}
-                              className="w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm"
-                            />
-                          );
-                        }
-                        
-                        return (
-                          <button
-                            key={`${day.date.toISOString()}`}
-                            onClick={() => handleYearCalendarDayClick(day.date)}
-                            className={`w-full h-2 sm:h-2.5 md:h-2.5 rounded-sm transition-colors ${
-                              day.hasWorkout
-                                ? 'bg-emerald-600/60 shadow-[0_0_2px_rgba(5,150,105,0.3)] hover:bg-emerald-600/80 active:bg-emerald-600'
-                                : 'bg-dark-border'
-                            }`}
-                            title={day.date.toLocaleDateString()}
-                            disabled={!day.hasWorkout}
-                          />
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Render Current View */}
+        {viewType === 'year' && renderYearView()}
+        {viewType === 'month' && renderMonthlyView()}
+        {viewType === 'week' && renderWeekView()}
       </div>
 
       {/* Workout Modal */}
@@ -407,4 +773,3 @@ export const Calendar: React.FC = () => {
     </div>
   );
 };
-
