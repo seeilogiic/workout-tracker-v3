@@ -133,7 +133,8 @@ export const Calendar: React.FC = () => {
         setCurrentDate(new Date(defaultYear, monthToShow, 1));
       }
     }
-  }, [defaultYear, viewType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultYear]); // Only run when defaultYear changes, not when viewType changes
 
   // Helper functions - defined before useMemo hooks that use them
   // Calculate workout time ranges for timeline display
