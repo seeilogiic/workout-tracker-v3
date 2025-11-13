@@ -7,81 +7,83 @@
 export const exerciseToMuscles: Record<string, string[]> = {
   // Chest Exercises
   'Bench Press': ['chest', 'triceps', 'front-deltoids'],
-  'Incline Bench Press': ['chest', 'triceps', 'front-deltoids'],
-  'Decline Bench Press': ['chest', 'triceps'],
-  'Chest Press': ['chest', 'triceps', 'front-deltoids'],
-  'Push Ups': ['chest', 'triceps', 'front-deltoids'],
   'Chest Fly': ['chest'],
+  'Decline Bench Press': ['chest', 'triceps'],
+  'Incline Bench Press': ['chest', 'triceps', 'front-deltoids'],
+  'Pullover': ['chest', 'upper-back'],
   'Pec Deck': ['chest'],
+  'Push Ups': ['chest', 'triceps', 'front-deltoids'],
   'Dips': ['chest', 'triceps', 'front-deltoids'],
 
   // Shoulder Exercises
-  'Shoulder Press': ['front-deltoids', 'triceps'],
-  'Overhead Press': ['front-deltoids', 'triceps'],
-  'Military Press': ['front-deltoids', 'triceps'],
   'Arnold Press': ['front-deltoids', 'triceps'],
-  'Lateral Raise': ['front-deltoids'],
   'Front Raise': ['front-deltoids'],
-  'Rear Delt Fly': ['back-deltoids'],
+  'Lateral Raise': ['front-deltoids'],
+  'Overhead Press': ['front-deltoids', 'triceps'],
   'Rear Delt Raise': ['back-deltoids'],
+  'Reverse Fly': ['back-deltoids', 'upper-back'],
   'Upright Row': ['front-deltoids', 'trapezius'],
 
   // Back Exercises
-  'Pull Ups': ['upper-back', 'biceps'],
-  'Chin Ups': ['upper-back', 'biceps'],
-  'Lat Pulldown': ['upper-back', 'biceps'],
   'Bent Over Row': ['upper-back', 'lower-back', 'biceps'],
   'Seated Row': ['upper-back', 'lower-back', 'biceps'],
-  'T-Bar Row': ['upper-back', 'lower-back', 'biceps'],
+  'Chin Ups': ['upper-back', 'biceps'],
   'Deadlift': ['hamstring', 'gluteal', 'lower-back', 'trapezius'],
-  'Romanian Deadlift': ['hamstring', 'gluteal', 'lower-back'],
-  'RDL': ['hamstring', 'gluteal', 'lower-back'],
-  'Shrugs': ['trapezius'],
   'Face Pull': ['back-deltoids', 'upper-back'],
+  'Lat Pulldown': ['upper-back', 'biceps'],
+  'Pull Ups': ['upper-back', 'biceps'],
+  'Romanian Deadlift': ['hamstring', 'gluteal', 'lower-back'],
+  'Shrugs': ['trapezius'],
+  'Straight Arm Pulldown': ['upper-back'],
+  'T-Bar Row': ['upper-back', 'lower-back', 'biceps'],
 
   // Bicep Exercises
   'Bicep Curl': ['biceps'],
+  'Concentration Curl': ['biceps'],
   'Hammer Curl': ['biceps', 'forearm'],
   'Preacher Curl': ['biceps'],
-  'Concentration Curl': ['biceps'],
 
   // Tricep Exercises
-  'Tricep Extension': ['triceps'],
-  'Overhead Extension': ['triceps'],
-  'Tricep Pushdown': ['triceps'],
   'Close Grip Bench Press': ['triceps', 'chest'],
+  'Tricep Kickback': ['triceps'],
+  'Overhead Extension': ['triceps'],
   'Skull Crushers': ['triceps'],
-  'Tricep Dips': ['triceps', 'front-deltoids'],
+  'Tricep Pushdown': ['triceps'],
+
+  // Forearm Exercises
+  'Reverse Wrist Curls': ['forearm'],
+  'Wrist Curls': ['forearm'],
 
   // Leg Exercises
-  'Squat': ['quadriceps', 'gluteal', 'hamstring'],
-  'Front Squat': ['quadriceps', 'gluteal', 'hamstring'],
-  'Leg Press': ['quadriceps', 'gluteal'],
-  'Leg Extension': ['quadriceps'],
-  'Leg Curl': ['hamstring'],
-  'Lunges': ['quadriceps', 'gluteal', 'hamstring'],
   'Bulgarian Split Squat': ['quadriceps', 'gluteal'],
-  'Stiff Leg Deadlift': ['hamstring', 'gluteal', 'lower-back'],
+  'Front Squat': ['quadriceps', 'gluteal', 'hamstring'],
   'Good Mornings': ['hamstring', 'gluteal', 'lower-back'],
+  'Leg Curl': ['hamstring'],
+  'Leg Extension': ['quadriceps'],
+  'Leg Press': ['quadriceps', 'gluteal'],
+  'Lunges': ['quadriceps', 'gluteal', 'hamstring'],
+  'Squat': ['quadriceps', 'gluteal', 'hamstring'],
+  'Stiff Leg Deadlift': ['hamstring', 'gluteal', 'lower-back'],
 
   // Glute Exercises
-  'Hip Thrust': ['gluteal', 'hamstring'],
   'Glute Bridge': ['gluteal', 'hamstring'],
+  'Hip Thrust': ['gluteal', 'hamstring'],
 
   // Calf Exercises
-  'Calf Raise': ['calves'],
-  'Standing Calf Raise': ['calves'],
   'Seated Calf Raise': ['calves'],
+  'Standing Calf Raise': ['calves'],
 
   // Core/Ab Exercises
-  'Crunches': ['abs'],
-  'Sit Ups': ['abs'],
-  'Plank': ['abs'],
-  'Leg Raises': ['abs'],
-  'Russian Twists': ['abs', 'obliques'],
   'Ab Wheel': ['abs'],
+  'Bicycle Crunch': ['abs', 'obliques'],
+  'Crunch': ['abs'],
+  'Crunches': ['abs'],
   'Hanging Leg Raise': ['abs'],
-  'Cable Crunch': ['abs'],
+  'Leg Raises': ['abs'],
+  'Plank': ['abs'],
+  'Russian Twists': ['abs', 'obliques'],
+  'Side Plank': ['abs', 'obliques'],
+  'Sit Ups': ['abs'],
 };
 
 /**
