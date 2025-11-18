@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { ExerciseData, EquipmentType, Exercise } from '../types';
 import { useExerciseAutofill } from '../hooks/useExerciseAutofill';
 import { getAllExerciseNames } from '../lib/muscleMapping';
 import { WorkoutEntry } from './WorkoutEntry';
+import { getLastExercise } from '../lib/workoutService';
 
 interface WorkoutFormProps {
   exercises: Exercise[];
@@ -67,6 +68,8 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [lastExercise, setLastExercise] = useState<Exercise | null>(null);
+  const [loadingLastExercise, setLoadingLastExercise] = useState(false);
   const { addExerciseName } = useExerciseAutofill();
   
   // Get all available exercise names from muscle mapping
@@ -82,6 +85,35 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
       ex.toLowerCase().includes(lowerInput)
     );
   }, [formData.exercise_name, availableExercises]);
+
+  // Fetch last exercise when both exercise name and equipment are selected
+  useEffect(() => {
+    const fetchLastExercise = async () => {
+      // Check if exercise name matches a valid exercise from the list
+      const normalizedName = availableExercises.find(ex => 
+        ex.toLowerCase() === formData.exercise_name.toLowerCase()
+      );
+      
+      if (normalizedName) {
+        setLoadingLastExercise(true);
+        try {
+          const last = await getLastExercise(normalizedName, formData.equipment);
+          setLastExercise(last);
+        } catch (error) {
+          console.error('Error fetching last exercise:', error);
+          setLastExercise(null);
+        } finally {
+          setLoadingLastExercise(false);
+        }
+      } else {
+        setLastExercise(null);
+      }
+    };
+
+    // Debounce the fetch
+    const timeoutId = setTimeout(fetchLastExercise, 300);
+    return () => clearTimeout(timeoutId);
+  }, [formData.exercise_name, formData.equipment, availableExercises]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -165,6 +197,7 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
     });
     setErrors({});
     setShowSuggestions(false);
+    setLastExercise(null);
   };
 
   const handleEdit = (exercise: Exercise) => {
@@ -194,6 +227,7 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
     });
     setErrors({});
     setShowSuggestions(false);
+    setLastExercise(null);
   };
 
   const handleExerciseSelect = (exerciseName: string) => {
@@ -239,6 +273,41 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
           </div>
           {errors.exercise_name && (
             <p className="mt-1 text-sm text-red-400">{errors.exercise_name}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="equipment" className="block text-sm font-medium text-light-text mb-2">
+            Equipment
+          </label>
+          <select
+            id="equipment"
+            value={formData.equipment || ''}
+            onChange={(e) => setFormData({ ...formData, equipment: e.target.value as EquipmentType || null })}
+            className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 text-light-text focus:outline-none focus:border-light-muted"
+          >
+            <option value="">None</option>
+            {equipmentOptions.map((option) => (
+              <option key={option} value={option}>
+                {formatEquipmentName(option)}
+              </option>
+            ))}
+          </select>
+          {/* Show last workout info when exercise name is valid */}
+          {formData.exercise_name.trim() && availableExercises.some(ex => 
+            ex.toLowerCase() === formData.exercise_name.toLowerCase()
+          ) && (
+            <div className="mt-2">
+              {loadingLastExercise ? (
+                <p className="text-sm text-light-muted">Loading last workout...</p>
+              ) : lastExercise ? (
+                <p className="text-sm text-light-muted italic">
+                  Last time: {lastExercise.sets ?? 'N/A'} sets × {lastExercise.reps ?? 'N/A'} reps @ {lastExercise.weight ?? 'N/A'} lbs
+                </p>
+              ) : (
+                <p className="text-sm text-light-muted italic">No previous workout found for this exercise and equipment</p>
+              )}
+            </div>
           )}
         </div>
 
@@ -314,25 +383,6 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
               <p className="mt-1 text-sm text-red-400">{errors.weight}</p>
             )}
           </div>
-        </div>
-
-        <div>
-          <label htmlFor="equipment" className="block text-sm font-medium text-light-text mb-2">
-            Equipment
-          </label>
-          <select
-            id="equipment"
-            value={formData.equipment || ''}
-            onChange={(e) => setFormData({ ...formData, equipment: e.target.value as EquipmentType || null })}
-            className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 text-light-text focus:outline-none focus:border-light-muted"
-          >
-            <option value="">None</option>
-            {equipmentOptions.map((option) => (
-              <option key={option} value={option}>
-                {formatEquipmentName(option)}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div>

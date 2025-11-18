@@ -318,3 +318,38 @@ export async function getWorkoutById(workoutId: string): Promise<Workout | null>
 export function hasSupabaseError(): boolean {
   return getSupabaseError() !== null;
 }
+
+export async function getLastExercise(exerciseName: string, equipment: string | null): Promise<Exercise | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    // Build query based on equipment
+    let query = supabase
+      .from('exercises')
+      .select('*')
+      .eq('exercise_name', exerciseName)
+      .order('created_at', { ascending: false });
+
+    // If equipment is specified, match it; if null, match null equipment
+    if (equipment !== null) {
+      query = query.eq('equipment', equipment);
+    } else {
+      query = query.is('equipment', null);
+    }
+
+    const { data, error } = await query.limit(1).maybeSingle();
+
+    if (error) {
+      console.error('Error fetching last exercise:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching last exercise:', error);
+    return null;
+  }
+}
