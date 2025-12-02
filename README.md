@@ -59,6 +59,16 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 - `notes` (text, nullable)
 - `created_at` (timestamp, default: `now()`)
 
+**workout_plans** table:
+- `id` (uuid, primary key, default: `gen_random_uuid()`)
+- `user_id` (uuid, foreign key to `auth.users.id`, nullable for global templates)
+- `name` (text, not null)
+- `goal` (text, nullable)
+- `duration_weeks` (integer, check > 0)
+- `definition` (jsonb, not null) - structured plan content
+- `created_at` (timestamp, default: `now()`)
+- `updated_at` (timestamp, default: `now()`)
+
 4. (Optional) Configure Row Level Security (RLS):
    - For a single-user app, you can disable RLS on both tables
    - Or create policies to allow all operations for authenticated users
