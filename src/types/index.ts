@@ -37,3 +37,41 @@ export interface WorkoutData {
   type: WorkoutType;
 }
 
+export interface WeeklyScheduleEntry {
+  day: string;
+  focus: string;
+  notes?: string | null;
+}
+
+export interface DayTemplateExercise {
+  name: string;
+  sets?: number | null;
+  reps?: number | null;
+  duration?: string | null;
+  notes?: string | null;
+}
+
+export interface DayTemplate {
+  day: string;
+  exercises: DayTemplateExercise[];
+  notes?: string | null;
+}
+
+export interface WorkoutPlan {
+  id: string;
+  name: string;
+  goal: string;
+  duration_weeks: number;
+  weekly_schedule: WeeklyScheduleEntry[];
+  day_templates: DayTemplate[];
+  created_at: string;
+}
+
+export interface WorkoutPlanInput {
+  name: string;
+  goal: string;
+  duration_weeks: number;
+  weekly_schedule: WeeklyScheduleEntry[];
+  day_templates: DayTemplate[];
+}
+
