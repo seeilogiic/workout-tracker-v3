@@ -70,6 +70,15 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onClose })
                   Calendar
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/plans"
+                  onClick={onClose}
+                  className="block px-4 py-3 min-h-[44px] flex items-center text-light-text active:bg-dark-border rounded-lg transition-colors touch-manipulation"
+                >
+                  Plans
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
