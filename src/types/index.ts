@@ -37,3 +37,46 @@ export interface WorkoutData {
   type: WorkoutType;
 }
 
+export interface ExerciseSetTemplate {
+  targetReps: number | null;
+  targetWeight?: number | null;
+  rir?: number | null;
+  tempo?: string | null;
+  notes?: string | null;
+}
+
+export interface ExerciseTemplate {
+  id: string;
+  name: string;
+  equipment?: EquipmentType | null;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  notes?: string | null;
+  sets: ExerciseSetTemplate[];
+}
+
+export interface DayTemplate {
+  id: string;
+  key: string;
+  name: string;
+  focus: WorkoutType | 'Rest';
+  notes?: string | null;
+  exercises: ExerciseTemplate[];
+}
+
+export interface ScheduleEntry {
+  dayTemplateId: string;
+  isRestDay?: boolean;
+  notes?: string | null;
+}
+
+export interface WorkoutPlan {
+  id: string;
+  name: string;
+  description?: string | null;
+  durationWeeks?: number | null;
+  schedule: Record<string, ScheduleEntry>;
+  dayTemplates: DayTemplate[];
+  metadata?: Record<string, unknown>;
+}
+

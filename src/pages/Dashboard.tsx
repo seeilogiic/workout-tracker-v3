@@ -4,6 +4,7 @@ import { useWorkout } from '../context/WorkoutContext';
 import { WorkoutList } from '../components/WorkoutList';
 import { SupabaseError } from '../components/SupabaseError';
 import { getSupabaseError } from '../lib/supabase';
+import { PlanSchedulePreview } from '../components/PlanSchedulePreview';
 
 export const Dashboard: React.FC = () => {
   const { recentWorkouts, isLoading, refreshWorkouts, supabaseError } = useWorkout();
@@ -51,6 +52,10 @@ export const Dashboard: React.FC = () => {
           ) : (
             <WorkoutList workouts={recentWorkouts} />
           )}
+        </div>
+
+        <div className="mb-8">
+          <PlanSchedulePreview />
         </div>
 
         <div className="mt-8">
