@@ -1,40 +1,7 @@
--- Workout Tracker Database Schema for Supabase
--- Run this SQL in your Supabase SQL Editor
+-- Migration: Create workout_plans table and seed initial plan
+-- Defines template and user-authored workout plans with structured JSON definitions
 
--- Create workouts table
--- Note: type can be 'Push', 'Pull', 'Legs', 'Upper body', or 'Other: [custom text]'
-CREATE TABLE IF NOT EXISTS workouts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date DATE NOT NULL,
-  type TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create exercises table
-CREATE TABLE IF NOT EXISTS exercises (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
-  exercise_name TEXT NOT NULL,
-  sets INTEGER,
-  reps INTEGER,
-  weight NUMERIC,
-  equipment TEXT CHECK (equipment IN ('machine', 'dumbbell', 'bar', 'cable', 'bodyweight', 'smith_machine', 'other')),
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(date);
-CREATE INDEX IF NOT EXISTS idx_workouts_type ON workouts(type);
-CREATE INDEX IF NOT EXISTS idx_exercises_workout_id ON exercises(workout_id);
-
--- Optional: Disable Row Level Security (RLS) for single-user app
--- If you want to enable RLS later, you can create policies
-ALTER TABLE workouts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE exercises DISABLE ROW LEVEL SECURITY;
-
--- Optional: Create a function to update updated_at timestamp
+-- Ensure helper function exists for updated_at management
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -43,33 +10,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to automatically update updated_at
-CREATE TRIGGER update_workouts_updated_at
-  BEFORE UPDATE ON workouts
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- Create workout_plans table for reusable templates or user-authored plans
-CREATE TABLE IF NOT EXISTS workout_plans (
+CREATE TABLE IF NOT EXISTS public.workout_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   goal TEXT,
   duration_weeks INTEGER CHECK (duration_weeks > 0),
   definition JSONB NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_workout_plans_user_id ON workout_plans(user_id);
+CREATE INDEX IF NOT EXISTS idx_workout_plans_user_id ON public.workout_plans(user_id);
 
 CREATE TRIGGER update_workout_plans_updated_at
-  BEFORE UPDATE ON workout_plans
+  BEFORE UPDATE ON public.workout_plans
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Seed a 16-week Spring Ultimate Athlete plan as a reusable template
-INSERT INTO workout_plans (user_id, name, goal, duration_weeks, definition)
+INSERT INTO public.workout_plans (user_id, name, goal, duration_weeks, definition)
 SELECT
   NULL AS user_id,
   'Spring Ultimate Athlete' AS name,
@@ -123,6 +83,5 @@ SELECT
     "notes": "Keep 1-2 reps in reserve on strength work. Prioritize crisp mechanics on sprint sessions."
   }'::jsonb
 WHERE NOT EXISTS (
-  SELECT 1 FROM workout_plans WHERE name = 'Spring Ultimate Athlete'
+  SELECT 1 FROM public.workout_plans WHERE name = 'Spring Ultimate Athlete'
 );
-
