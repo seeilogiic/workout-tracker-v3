@@ -1,0 +1,25 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Sunday at 2 AM US Central is 08:00 UTC (07:00 during daylight saving)
+    - cron: '0 8 * * 0'
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit Supabase health endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL secret" >&2
+            exit 1
+          fi
+
+          # Basic health ping to keep the Supabase project active
+          curl -fsS "${SUPABASE_URL%/}/auth/v1/health" -o /dev/null
