@@ -67,6 +67,23 @@ export interface DayTemplate {
 export interface ScheduleEntry {
   dayTemplateId: string;
   isRestDay?: boolean;
+export interface WeeklyScheduleEntry {
+  day: string;
+  focus: string;
+  notes?: string | null;
+}
+
+export interface DayTemplateExercise {
+  name: string;
+  sets?: number | null;
+  reps?: number | null;
+  duration?: string | null;
+  notes?: string | null;
+}
+
+export interface DayTemplate {
+  day: string;
+  exercises: DayTemplateExercise[];
   notes?: string | null;
 }
 
@@ -78,5 +95,18 @@ export interface WorkoutPlan {
   schedule: Record<string, ScheduleEntry>;
   dayTemplates: DayTemplate[];
   metadata?: Record<string, unknown>;
+  goal: string;
+  duration_weeks: number;
+  weekly_schedule: WeeklyScheduleEntry[];
+  day_templates: DayTemplate[];
+  created_at: string;
+}
+
+export interface WorkoutPlanInput {
+  name: string;
+  goal: string;
+  duration_weeks: number;
+  weekly_schedule: WeeklyScheduleEntry[];
+  day_templates: DayTemplate[];
 }
 
